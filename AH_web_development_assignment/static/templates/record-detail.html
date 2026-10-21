@@ -1,0 +1,28 @@
+<div class="card">
+    <h2>진료 상세 정보</h2>
+    <div style="display: flex; gap: 2rem;">
+        <div style="flex: 1;">
+            <p><strong>ID:</strong> <span id="record-id"></span></p>
+            <p><strong>차트 번호:</strong> <span id="chart-number"></span></p>
+            <p><strong>증상:</strong> <span id="symptoms-text"></span></p>
+            <p><strong>등록일:</strong> <span id="created-at"></span></p>
+        </div>
+        <div style="flex: 1;">
+            <p><strong>X-Ray 이미지:</strong></p>
+            <img id="xray-img" src="" alt="X-Ray" style="max-width: 100%; border-radius: 8px;">
+        </div>
+    </div>
+
+    <hr style="margin: 2rem 0; border: 0; border-top: 1px solid #eee;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3>AI 폐렴 예측 결과</h3>
+        <button id="predict-btn">AI 예측 결과보기</button>
+    </div>
+    
+    <div id="analysis-list">
+        <!-- JS로 채워짐 -->
+    </div>
+    
+    <button id="back-to-patient-btn" class="secondary" style="margin-top: 1rem;">진료 목록으로</button>
+</div>

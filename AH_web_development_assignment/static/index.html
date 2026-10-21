@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 폐렴 진단 지원 시스템</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">AI Health</div>
+            <ul id="nav-links">
+                <li><a href="/" onclick="route(event)" class="nav-btn">홈</a></li>
+                <li class="auth-only"><a href="/patients" onclick="route(event)" class="nav-btn">환자 관리</a></li>
+                <li id="admin-link-container" class="auth-only"></li>
+                <li id="auth-link" class="nav-item-right"></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main id="app">
+        <!-- 동적 컨텐츠가 여기에 렌더링됩니다 -->
+    </main>
+
+    <footer>
+        <p>&copy; 2026 AI Health Diagnosis Support System</p>
+    </footer>
+
+    <!-- 알림 모달 -->
+    <div id="alert-modal" class="modal">
+        <div class="modal-content">
+            <span id="alert-modal-icon" class="modal-icon"></span>
+            <h3 id="alert-modal-title">알림</h3>
+            <p id="alert-modal-message"></p>
+            <div class="alert-modal-footer">
+                <button id="alert-modal-close-btn" class="nav-btn login-btn">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/utils.js"></script>
+    <script src="/static/apis.js"></script>
+    <script src="/static/pages.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>

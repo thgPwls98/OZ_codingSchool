@@ -1,0 +1,36 @@
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>환자 목록</h2>
+        <button onclick="navigate('/patients/create')">환자 등록</button>
+    </div>
+    
+    <!-- 검색 및 필터 영역 추가 -->
+    <div class="search-bar" style="margin-bottom: 1.5rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        <input type="text" id="search-name" placeholder="이름 검색" style="flex: 1; min-width: 150px;" onkeypress="if(event.key === 'Enter') pages.handleSearch()">
+        <select id="filter-gender" style="width: 100px;" onchange="pages.handleSearch()">
+            <option value="">성별 전체</option>
+            <option value="male">남성</option>
+            <option value="female">여성</option>
+        </select>
+        <input type="number" id="filter-min-age" placeholder="최소 나이" style="width: 80px;" onchange="pages.handleSearch()" onkeypress="if(event.key === 'Enter') pages.handleSearch()">
+        <input type="number" id="filter-max-age" placeholder="최대 나이" style="width: 80px;" onchange="pages.handleSearch()" onkeypress="if(event.key === 'Enter') pages.handleSearch()">
+        <button onclick="pages.handleSearch()">검색</button>
+        <button class="secondary" onclick="pages.resetSearch()">초기화</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>이름</th>
+                <th>나이</th>
+                <th>성별</th>
+                <th>전화번호</th>
+                <th>관리</th>
+            </tr>
+        </thead>
+        <tbody id="patients-list">
+            <!-- JS로 채워짐 -->
+        </tbody>
+    </table>
+</div>

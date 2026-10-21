@@ -1,0 +1,68 @@
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+        <div>
+            <h2 id="patient-name" style="margin: 0;">환자 정보 로딩 중...</h2>
+            <p id="patient-info" style="color: #666; margin-top: 0.5rem;"></p>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button onclick="pages.openUpdateModal()" style="background-color: var(--secondary-color);">정보 수정</button>
+            <button onclick="pages.confirmDeletePatient()" style="background-color: var(--danger-color);">삭제</button>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="margin: 0;">진료 기록 목록</h2>
+        <button id="add-record-btn">진료 기록 등록</button>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>차트 번호</th>
+                <th>증상</th>
+                <th>등록일</th>
+                <th>관리</th>
+            </tr>
+        </thead>
+        <tbody id="records-list">
+            <!-- JS로 채워짐 -->
+        </tbody>
+    </table>
+    <button class="secondary" onclick="navigate('/patients')" style="margin-top: 1rem;">목록으로</button>
+</div>
+
+<!-- 정보 수정 모달 -->
+<div id="update-modal" class="modal">
+    <div class="modal-content">
+        <h3>환자 정보 수정</h3>
+        <form onsubmit="pages.handlePatientUpdate(event)" style="text-align: left;">
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <label for="update-name">이름</label>
+                <input type="text" id="update-name" required>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <label for="update-phone">전화번호</label>
+                <input type="tel" id="update-phone" required>
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-top: 1rem; justify-content: flex-end;">
+                <button type="button" class="secondary" onclick="pages.closeUpdateModal()">취소</button>
+                <button type="submit">수정 완료</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 삭제 확인 모달 -->
+<div id="delete-modal" class="modal">
+    <div class="modal-content">
+        <h3 style="color: var(--danger-color);">환자 정보 삭제</h3>
+        <p>환자를 삭제하면 해당 환자의 <strong>모든 진료 기록 및 AI 분석 데이터가 영구적으로 삭제</strong>됩니다.</p>
+        <p>정말로 삭제하시겠습니까?</p>
+        <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem; justify-content: flex-end;">
+            <button class="secondary" onclick="pages.closeDeleteModal()">취소</button>
+            <button style="background-color: var(--danger-color);" onclick="pages.handlePatientDelete()">확인했습니다.</button>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,37 @@
+<div class="card auth-card">
+    <h2>회원가입</h2>
+    <form onsubmit="pages.handleSignup(event)">
+        <label for="signup-email">이메일</label>
+        <input type="email" id="signup-email" placeholder="이메일" required>
+        
+        <label for="signup-name">이름</label>
+        <input type="text" id="signup-name" placeholder="이름" required>
+        
+        <label for="signup-department">부서</label>
+        <select id="signup-department" required>
+            <option value="">부서 선택</option>
+            <option value="developer">개발팀</option>
+            <option value="medical team">의료진</option>
+            <option value="researcher">연구진</option>
+        </select>
+        
+        <label for="signup-gender">성별</label>
+        <select id="signup-gender" required>
+            <option value="">성별 선택</option>
+            <option value="male">남성</option>
+            <option value="female">여성</option>
+        </select>
+        
+        <label for="signup-phone">전화번호</label>
+        <input type="tel" id="signup-phone" placeholder="전화번호 (예: 010-1234-5678)" required>
+        <div id="signup-phone-error" class="error-message" style="display: none; color: var(--danger-color); font-size: 0.85rem; margin-top: -0.5rem; margin-bottom: 0.5rem;"></div>
+        
+        <label for="signup-password">비밀번호</label>
+        <input type="password" id="signup-password" placeholder="비밀번호" required>
+        
+        <div class="form-actions">
+            <button type="submit">가입하기</button>
+            <button type="button" class="secondary" onclick="navigate('/login')">취소</button>
+        </div>
+    </form>
+</div>

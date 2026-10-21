@@ -1,0 +1,22 @@
+<div class="card auth-card">
+    <h2>진료 기록 등록</h2>
+    <form id="record-create-form">
+        <label for="chart_number">차트 번호</label>
+        <input type="text" id="chart_number" placeholder="차트 번호" required>
+        
+        <label for="symptoms">증상</label>
+        <textarea id="symptoms" placeholder="증상" required></textarea>
+        
+        <label for="xray_image">X-Ray 이미지 업로드</label>
+        <input type="file" id="xray_image" accept="image/*" required>
+        
+        <div id="image-preview-container" class="image-preview-container">
+            <p>이미지 미리보기가 여기에 표시됩니다.</p>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit">등록</button>
+            <button type="button" id="cancel-btn" class="secondary">취소</button>
+        </div>
+    </form>
+</div>

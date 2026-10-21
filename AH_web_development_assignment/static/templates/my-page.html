@@ -1,0 +1,55 @@
+<div class="card auth-card">
+    <h2>마이페이지</h2>
+    <section class="profile-info">
+        <h3>기본 정보</h3>
+        <p><strong>이메일:</strong> <span id="me-email"></span></p>
+        <p><strong>이름:</strong> <span id="me-name-display"></span></p>
+        <p><strong>부서:</strong> <span id="me-department-display"></span></p>
+        <p><strong>성별:</strong> <span id="me-gender-display"></span></p>
+        <p><strong>전화번호:</strong> <span id="me-phone-display"></span></p>
+        <p><strong>권한:</strong> <span id="me-role-display"></span></p>
+    </section>
+
+    <hr style="margin: 2rem 0; border: 0; border-top: 1px solid #eee;">
+
+    <section class="update-profile">
+        <h3>정보 수정</h3>
+        <form id="update-me-form">
+            <label for="update-me-department">부서</label>
+            <select id="update-me-department" required>
+                <option value="developer">개발팀</option>
+                <option value="medical team">의료진</option>
+                <option value="researcher">연구진</option>
+            </select>
+
+            <label for="update-me-phone">전화번호</label>
+            <input type="tel" id="update-me-phone" required>
+            <div id="update-me-phone-error" class="error-message" style="display: none; color: var(--danger-color); font-size: 0.85rem; margin-top: 0.2rem; margin-bottom: 0.5rem;"></div>
+
+            <button type="submit" style="margin-top: 0.5rem;">정보 저장</button>
+        </form>
+    </section>
+
+    <hr style="margin: 2rem 0; border: 0; border-top: 1px solid #eee;">
+
+    <section class="update-password">
+        <h3>비밀번호 변경</h3>
+        <form id="update-password-form">
+            <label for="old-password">현재 비밀번호</label>
+            <input type="password" id="old-password" required>
+
+            <label for="new-password">새 비밀번호</label>
+            <input type="password" id="new-password" required>
+
+            <button type="submit" style="margin-top: 0.5rem; background-color: var(--secondary-color);">비밀번호 변경</button>
+        </form>
+    </section>
+
+    <hr style="margin: 2rem 0; border: 0; border-top: 1px solid #eee;">
+
+    <section class="danger-zone">
+        <h3 style="color: var(--danger-color);">계정 관리</h3>
+        <p style="font-size: 0.9rem; color: #666;">계정을 삭제하면 모든 데이터가 영구적으로 삭제됩니다.</p>
+        <button id="delete-me-btn" style="background-color: var(--danger-color);">회원 탈퇴</button>
+    </section>
+</div>

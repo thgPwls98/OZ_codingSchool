@@ -1,0 +1,25 @@
+<div class="card auth-card">
+    <h2>환자 등록</h2>
+    <form onsubmit="pages.handlePatientCreate(event)">
+        <label for="name">이름</label>
+        <input type="text" id="name" placeholder="이름" required>
+        
+        <label for="age">나이</label>
+        <input type="number" id="age" placeholder="나이" required>
+        
+        <label for="phone_number">전화번호</label>
+        <input type="tel" id="phone_number" placeholder="전화번호 (예: 01012345678)" required>
+        
+        <label for="gender">성별</label>
+        <select id="gender" required>
+            <option value="">성별 선택</option>
+            <option value="male">남성</option>
+            <option value="female">여성</option>
+        </select>
+        
+        <div class="form-actions">
+            <button type="submit">등록</button>
+            <button type="button" class="secondary" onclick="navigate('/patients')">취소</button>
+        </div>
+    </form>
+</div>
