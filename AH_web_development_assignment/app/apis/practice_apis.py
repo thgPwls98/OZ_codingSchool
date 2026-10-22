@@ -87,7 +87,9 @@ def get_users():
 
 
 # ② 특정 회원 조회
-
+@router.get("/users/{user_id}", response_model=UserResponse)
+def get_user(user_id: int):
+    return find_user(user_id)
 
 # ③ 회원 추가
 
@@ -96,3 +98,7 @@ def get_users():
 
 
 # ⑤ 회원 삭제
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(user_id: int):
+    user_list.remove(find_user(user_id))
+    return Response(status_code=204)
