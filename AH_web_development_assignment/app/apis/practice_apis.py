@@ -81,6 +81,9 @@ def find_user(user_id: int) -> dict:
 # 각자 자기 번호 주석 바로 아래에만 코드를 붙여주세요.
 
 # ① 모든 회원 목록 조회
+@router.get("/users", response_model=list[UserResponse])
+def get_users():
+    return user_list
 
 
 # ② 특정 회원 조회
@@ -93,4 +96,3 @@ def find_user(user_id: int) -> dict:
 
 
 # ⑤ 회원 삭제
-
