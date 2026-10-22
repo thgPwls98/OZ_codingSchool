@@ -28,3 +28,22 @@ user_list = [
 ]
 
 router = APIRouter(prefix="/practice_api")
+
+class UserResponse(BaseModel):
+    id: int
+    name: str
+    age: int
+    email: str
+
+
+class CreateUserRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=10)
+    age: int = Field(..., ge=14)
+    email: str = Field(..., max_length=30)
+    password: str = Field(..., min_length=8, max_length=20)
+
+
+class UpdateUserRequest(BaseModel):
+    age: int | None = Field(default=None, ge=14)
+    email: str | None = Field(default=None, max_length=30)
+    password: str | None = Field(default=None, min_length=8, max_length=20)
