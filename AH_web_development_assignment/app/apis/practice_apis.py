@@ -45,7 +45,8 @@ class CreateUserRequest(BaseModel):
 
 class UpdateUserRequest(BaseModel):
     age: int | None = Field(default=None, ge=14)
-    email: str | None = Field(default=None, max_length=30)
+    email: str | None = Field(default=None, max_length=30)    
+    password: str | None = Field(default=None, min_length=8, max_length=20)
 
 
 
@@ -92,4 +93,4 @@ def find_user(user_id: int) -> dict:
 
 
 # ⑤ 회원 삭제
-    password: str | None = Field(default=None, min_length=8, max_length=20)
+
