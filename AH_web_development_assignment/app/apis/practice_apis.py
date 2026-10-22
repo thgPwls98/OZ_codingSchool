@@ -92,6 +92,23 @@ def get_user(user_id: int):
     return find_user(user_id)
 
 # ③ 회원 추가
+@router.post("/users", response_model=UserResponse, status_code=201)
+def create_user(body: CreateUserRequest):
+    # 이메일 형식, 비밀번호 규칙 검증
+    check_email(body.email)
+    check_password(body.password)
+
+    # 이메일 중복 검사
+    for user in user_list:
+        if user["email"] == body.email:
+            raise HTTPException(status_code=400, detail="이미 사용 중인 이메일입니다.")
+
+    # id 자동 증가: 현재 가장 큰 id + 1
+    new_id = max((user["id"] for user in user_list), default=0) + 1
+
+    new_user = {"id": new_id, **body.model_dump()}
+    user_list.append(new_user)
+    return new_user
 
 
 # ④ 회원 정보 수정
