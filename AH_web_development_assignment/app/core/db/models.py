@@ -6,6 +6,8 @@ from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import Mapped, mapped_column
 from uuid6 import uuid7
 
+from app.core.db.databases import Base
+
 
 class UUIDMixin:
     uuid: Mapped[uuid_pkg.UUID] = mapped_column(
@@ -15,10 +17,14 @@ class UUIDMixin:
 
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.now(UTC), server_default=text("current_timestamp(0)")
+        DateTime,
+        default=lambda: datetime.now(UTC).replace(tzinfo=None),
+        server_default=text("current_timestamp(0)"),
     )
     updated_at: Mapped[datetime | None] = mapped_column(
-        DateTime, nullable=True, onupdate=datetime.now(UTC), server_default=text("current_timestamp(0)")
+        DateTime,
+        nullable=True,
+        onupdate=lambda: datetime.now(UTC).replace(tzinfo=None),
     )
 
 
