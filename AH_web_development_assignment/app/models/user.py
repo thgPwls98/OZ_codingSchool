@@ -1,9 +1,12 @@
-from sqlalchemy import Boolean, Column, DateTime, Enum, Integer, String, func, text
+from sqlalchemy import Boolean, Column, Enum, Integer, String, text
+from sqlalchemy.orm import relationship
 
 from app.core.db.databases import Base
+from app.core.db.models import TimestampMixin
+from app.models.enums import GENDER_ENUM
 
 
-class User(Base):
+class User(TimestampMixin, Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -11,13 +14,10 @@ class User(Base):
     hashed_password = Column(String(255))
     name = Column(String(20))
     phone_number = Column(String(20), unique=True)
-    gender = Column(Enum("male", "female", name="gender"), nullable=False)
+    gender = Column(GENDER_ENUM, nullable=False)
     department = Column(
         Enum("radiology", "administration", name="department"), nullable=False
     )
     role = Column(Enum("admin", "doctor", "user", name="role"), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True, server_default=text("1"))
-    created_at = Column(
-        DateTime, nullable=False, server_default=func.current_timestamp()
-    )
-    updated_at = Column(DateTime, onupdate=func.current_timestamp())
+    xray_images = relationship("XrayImage", back_populates="uploader")
