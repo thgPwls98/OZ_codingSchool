@@ -1,5 +1,5 @@
 from sqlalchemy import BigInteger, Enum, SmallInteger, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db.databases import Base
 from app.core.db.models import TimestampMixin
@@ -14,5 +14,15 @@ class Patient(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(30), nullable=False)
     age: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    gender: Mapped[Gender | None] = mapped_column(Enum(Gender, name="gender"), nullable=True)
+    gender: Mapped[Gender | None] = mapped_column(
+        Enum(
+            Gender,
+            name="gender",
+            values_callable=lambda enum_type: [member.value for member in enum_type],
+        ),
+        nullable=True,
+    )
     phone: Mapped[str] = mapped_column(String(11), nullable=False)  # 하이픈 없이 01012345678
+    medical_records: Mapped[list["MedicalRecord"]] = relationship(
+        back_populates="patient"
+    )

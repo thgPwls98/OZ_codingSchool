@@ -27,3 +27,9 @@
 PR은 올린 당일 안에 확인하기
 리뷰 코멘트는 "~하면 어떨까요?"처럼 제안하는 말투로 남기기
 리뷰어가 승인(Approve)한 뒤에만 merge 하기
+역할분담
+소혜진: Github Repository에 템플릿 업로드
+최현영: Team Rules.md 수정
+강선영: Team Rules.md 수정
+서민서: Team Rules.md 수정
+김지영: Team Rules.md 초안 작성
