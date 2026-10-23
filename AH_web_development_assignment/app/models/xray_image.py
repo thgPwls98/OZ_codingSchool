@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db.databases import Base
 
@@ -21,5 +21,8 @@ class XrayImage(Base):
     image_url: Mapped[str] = mapped_column(String(2048), nullable=False, comment="이미지 경로")
     shooting_datetime: Mapped[datetime] = mapped_column(DateTime, nullable=False, comment="촬영 일시")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now(), comment="등록 일시"
+        DateTime, nullable=False, server_default=func.current_timestamp()
     )
+
+    record: Mapped["MedicalRecord"] = relationship(back_populates="xray_images")
+    uploader: Mapped["User"] = relationship(back_populates="xray_images")
