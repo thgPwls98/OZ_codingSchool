@@ -112,7 +112,21 @@ def create_user(body: CreateUserRequest):
 
 
 # ④ 회원 정보 수정
+@router.put("/users/{user_id}", response_model=UserResponse)
+async def update_user(user_id: int, data: UpdateUserRequest):
+    user = find_user(user_id)
 
+    updates = data.model_dump(exclude_none=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="수정할 항목을 하나 이상 입력하세요.")
+
+    if "email" in updates:
+        check_email(updates["email"])
+    if "password" in updates:
+        check_password(updates["password"])
+
+    user.update(updates)
+    return user
 
 # ⑤ 회원 삭제
 @router.delete("/users/{user_id}", status_code=204)
