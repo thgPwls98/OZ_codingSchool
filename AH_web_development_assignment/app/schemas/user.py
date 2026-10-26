@@ -8,7 +8,6 @@ from pydantic import (
     ConfigDict,
     EmailStr,
     Field,
-    StringConstraints,
 )
 
 from app.models.enums import Department, Gender, Role
@@ -22,27 +21,54 @@ def normalize_email(value: object) -> object:
     return value
 
 
+# 프런트엔드(static/apis.js)가 이 문구를 그대로 인식해서 보여주므로 바꾸지 않는다.
+PASSWORD_RULE_MESSAGE = "비밀번호는 대소문자, 특수문자, 숫자를 각 1개씩 포함한 8자리 이상이어야 합니다."
+
+
 def validate_password(value: str) -> str:
-    """영문 대문자·소문자·숫자·특수문자 각 1개 이상, 공백 불허."""
+    """8~64자, 영문 대문자·소문자·숫자·특수문자 각 1개 이상, 공백 불허."""
     if re.search(r"\s", value):
         raise ValueError("비밀번호에 공백을 사용할 수 없습니다.")
+    if len(value) > 64:
+        raise ValueError("비밀번호는 64자 이하여야 합니다.")
     if not (
-        re.search(r"[A-Z]", value)
+        len(value) >= 8
+        and re.search(r"[A-Z]", value)
         and re.search(r"[a-z]", value)
         and re.search(r"[0-9]", value)
         and re.search(r"[^A-Za-z0-9]", value)
     ):
-        raise ValueError("비밀번호는 영문 대문자, 소문자, 숫자, 특수문자를 각각 1개 이상 포함해야 합니다.")
+        raise ValueError(PASSWORD_RULE_MESSAGE)
+    return value
+
+
+def validate_name(value: str) -> str:
+    """앞뒤 공백 제거 후 2~20자."""
+    value = value.strip()
+    if not 2 <= len(value) <= 20:
+        raise ValueError("이름은 2~20자로 입력하세요.")
+    return value
+
+
+def validate_phone_number(value: str) -> str:
+    """010으로 시작하는 숫자 11자리 (하이픈 없음)."""
+    if not re.fullmatch(r"010\d{8}", value):
+        raise ValueError("휴대폰 번호는 010으로 시작하는 숫자 11자리로 입력하세요.")
     return value
 
 
 # 다른 팀원도 import해서 쓸 수 있는 타입
 Email = Annotated[EmailStr, BeforeValidator(normalize_email), Field(max_length=255)]
-Password = Annotated[str, Field(min_length=8, max_length=64), AfterValidator(validate_password)]
-Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=20)]
+Password = Annotated[
+    str,
+    AfterValidator(validate_password),
+    Field(description="8~64자, 영문 대문자·소문자·숫자·특수문자 각 1개 이상"),
+]
+Name = Annotated[str, AfterValidator(validate_name), Field(description="2~20자")]
 PhoneNumber = Annotated[
     str,
-    Field(pattern=r"^010\d{8}$", description="010으로 시작하는 숫자 11자리 (하이픈 없음)"),
+    AfterValidator(validate_phone_number),
+    Field(description="010으로 시작하는 숫자 11자리 (하이픈 없음)", examples=["01012345678"]),
 ]
 
 
