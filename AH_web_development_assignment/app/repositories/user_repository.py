@@ -52,3 +52,14 @@ class UserRepository:
         await self.db.commit()
         await self.db.refresh(user)
         return user
+
+    async def save(self, user: User) -> User:
+        """이미 조회한 사용자 객체의 변경 사항을 저장한다."""
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def delete(self, user: User) -> None:
+        # 업로드한 X-ray의 uploader_id는 같은 트랜잭션에서 NULL로 바뀐다. (ON DELETE SET NULL)
+        await self.db.delete(user)
+        await self.db.commit()

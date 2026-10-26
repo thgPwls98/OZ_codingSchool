@@ -9,6 +9,7 @@ from pydantic import (
     EmailStr,
     Field,
     StringConstraints,
+    field_validator,
 )
 
 from app.models.enums import Department, Gender, Role
@@ -76,6 +77,43 @@ class SignupRequest(BaseModel):
     department: Department
     gender: Gender
     phone_number: PhoneNumber
+
+
+# REQ-USER-007 내 정보 수정 (부서·휴대폰 번호만 부분 수정)
+class UpdateMeRequest(BaseModel):
+    # 이메일·이름·권한 등 수정할 수 없는 필드가 들어오면 422로 거부한다.
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={"example": {"department": "research"}},
+    )
+
+    department: Department | None = None
+    phone_number: PhoneNumber | None = None
+
+    # 생략한 필드는 유지하고, null을 직접 보낸 경우만 거부한다.
+    # (기본값 None에는 검증 함수가 실행되지 않는다.)
+    @field_validator("department", "phone_number", mode="before")
+    @classmethod
+    def reject_null(cls, value: object) -> object:
+        if value is None:
+            raise ValueError("null은 입력할 수 없습니다.")
+        return value
+
+
+# REQ-USER-008 비밀번호 변경
+class ChangePasswordRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "current_password": "Example123!",
+                "new_password": "Changed456!",
+            }
+        },
+    )
+
+    current_password: str = Field(min_length=1)
+    new_password: Password
 
 
 # ===== 응답 (공통 UserResponse) =====
