@@ -310,13 +310,11 @@ const pages = {
 
         try {
             await apis.updatePassword(data);
-            utils.showAlert('비밀번호가 변경되었습니다.', 'success');
-            e.target.reset();
+            utils.showAlert('비밀번호가 변경되었습니다. 다시 로그인해주세요.', 'success');
+            logout(); // (app.js) 토큰·사용자 상태 삭제 후 로그인 화면 이동
         } catch (err) {
             let msg = err.message;
-            if (err.status === 400) {
-                msg = '비밀번호는 "대소문자, 특수문자, 숫자를 각 1개씩 포함한 8자리 이상이어야 합니다."';
-            } else if (err.status === 500) {
+            if (err.status === 500) {
                 msg = '잠시 후 다시시도해주세요.';
             }
             utils.showAlert(msg, 'error', '비밀번호 변경 실패');
