@@ -2,10 +2,10 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 
 from app.core.security import hash_password
-from app.models.enums import Role
+from app.models.enums import Department, Role
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import SignupRequest
+from app.schemas.user import RoleChangeRequest, SignupRequest
 
 EMAIL_DUPLICATED = "이미 사용 중인 이메일입니다."
 PHONE_DUPLICATED = "이미 사용 중인 휴대폰 번호입니다."
@@ -14,6 +14,26 @@ PHONE_DUPLICATED = "이미 사용 중인 휴대폰 번호입니다."
 class UserService:
     def __init__(self, repository: UserRepository):
         self.repository = repository
+
+    async def list_users(
+        self, query: str = "", department: Department | None = None
+    ) -> list[User]:
+        return await self.repository.list_users(query, department)
+
+    async def change_role(self, current_user_id: int, data: RoleChangeRequest) -> User:
+        if current_user_id == data.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="본인의 권한은 변경할 수 없습니다.",
+            )
+        user = await self.repository.get_by_id(data.user_id)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="회원을 찾을 수 없습니다."
+            )
+        if user.role == data.new_role:
+            return user
+        return await self.repository.update_role(user, data.new_role)
 
     async def signup(self, data: SignupRequest) -> User:
         # 1. 중복 사전 조회
