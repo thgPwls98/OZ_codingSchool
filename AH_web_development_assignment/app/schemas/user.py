@@ -47,6 +47,13 @@ PhoneNumber = Annotated[
 
 
 # ===== 요청 =====
+class RoleChangeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: int = Field(ge=1)
+    new_role: Role
+
+
 class SignupRequest(BaseModel):
     # role, is_active 등 정의되지 않은 필드가 들어오면 422로 거부한다.
     model_config = ConfigDict(

@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
+from app.models.enums import Department, Role
 
 
 class UserRepository:
@@ -12,6 +13,31 @@ class UserRepository:
 
     async def get_by_id(self, user_id: int) -> User | None:
         return await self.db.get(User, user_id)
+
+    async def list_users(
+        self, query: str = "", department: Department | None = None
+    ) -> list[User]:
+        statement = select(User)
+        if query:
+            # 검색어의 %와 _도 와일드카드가 아닌 일반 문자로 검색한다.
+            statement = statement.where(
+                User.email.icontains(query, autoescape=True)
+                | User.name.icontains(query, autoescape=True)
+            )
+        if department is not None:
+            statement = statement.where(User.department == department)
+        result = await self.db.execute(statement.order_by(User.id.asc()))
+        return list(result.scalars().all())
+
+    async def update_role(self, user: User, new_role: Role) -> User:
+        user.role = new_role
+        try:
+            await self.db.commit()
+            await self.db.refresh(user)
+        except Exception:
+            await self.db.rollback()
+            raise
+        return user
 
     async def get_by_email(self, email: str) -> User | None:
         result = await self.db.execute(select(User).where(User.email == email))
