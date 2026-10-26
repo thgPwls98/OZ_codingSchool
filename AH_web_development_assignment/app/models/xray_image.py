@@ -15,8 +15,12 @@ class XrayImage(Base):
     record_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("medical_records.id"), nullable=False, comment="진료 기록 ID"
     )
-    uploader_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, comment="업로드한 의료진 ID"
+    # 회원 탈퇴 시 NULL로 바뀐다 (X-Ray 기록은 보존)
+    uploader_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="업로드한 의료진 ID",
     )
     image_url: Mapped[str] = mapped_column(String(2048), nullable=False, comment="이미지 경로")
     shooting_datetime: Mapped[datetime] = mapped_column(DateTime, nullable=False, comment="촬영 일시")
@@ -25,4 +29,4 @@ class XrayImage(Base):
     )
 
     record: Mapped["MedicalRecord"] = relationship(back_populates="xray_images")
-    uploader: Mapped["User"] = relationship(back_populates="xray_images")
+    uploader: Mapped["User | None"] = relationship(back_populates="xray_images")

@@ -13,7 +13,7 @@ from app.core.security import (
     decode_token,
     verify_password,  # 팀원 1(공통 기반) 담당 함수
 )
-from app.repositories.user import get_user_by_email, get_user_by_id
+from app.repositories.user_repository import UserRepository
 from app.schemas.auth import LoginResponse, TokenResponse
 from app.schemas.user import UserResponse
 
@@ -67,7 +67,7 @@ async def login(
     db: Annotated[AsyncSession, Depends(async_get_db)],
 ) -> LoginResponse:
     email = form_data.username.strip().lower()  # 회원가입과 같은 방식으로 정규화
-    user = await get_user_by_email(db, email)
+    user = await UserRepository(db).get_by_email(email)
 
     # 이메일과 비밀번호 중 무엇이 틀렸는지 구분하지 않는다.
     if user is None or not verify_password(form_data.password, user.hashed_password):
@@ -110,7 +110,7 @@ async def refresh(
     if user_id is None:
         return _error_and_clear_cookie(status.HTTP_401_UNAUTHORIZED, "다시 로그인해주세요.")
 
-    user = await get_user_by_id(db, user_id)
+    user = await UserRepository(db).get_by_id(user_id)
     if user is None:  # 탈퇴한 사용자
         return _error_and_clear_cookie(status.HTTP_401_UNAUTHORIZED, "다시 로그인해주세요.")
     if not user.is_active:
