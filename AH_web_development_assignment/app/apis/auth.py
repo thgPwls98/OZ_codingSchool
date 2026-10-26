@@ -60,7 +60,15 @@ def _error_and_clear_cookie(status_code: int, detail: str) -> JSONResponse:
 # ---------------------------------------------------------------------------
 # 로그인 (REQ-USER-002, NFR-USER-001) - 설계 문서 4절
 # ---------------------------------------------------------------------------
-@router.post("/login", response_model=LoginResponse)
+@router.post(
+    "/login",
+    response_model=LoginResponse,
+    summary="로그인",
+    responses={
+        401: {"description": "이메일 또는 비밀번호 불일치"},
+        403: {"description": "비활성 계정"},
+    },
+)
 async def login(
     response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
@@ -99,6 +107,7 @@ async def login(
 @router.post(
     "/refresh",
     response_model=TokenResponse,
+    summary="액세스 토큰 재발급",
     responses={401: {"description": "다시 로그인 필요"}, 403: {"description": "비활성 계정"}},
 )
 async def refresh(
@@ -127,7 +136,7 @@ async def refresh(
 # ---------------------------------------------------------------------------
 # 로그아웃 (REQ-USER-003) - 설계 문서 6절
 # ---------------------------------------------------------------------------
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, summary="로그아웃")
 async def logout(response: Response) -> None:
     # 쿠키가 없거나 만료된 경우에도 똑같이 204로 응답한다.
     _delete_refresh_cookie(response)
