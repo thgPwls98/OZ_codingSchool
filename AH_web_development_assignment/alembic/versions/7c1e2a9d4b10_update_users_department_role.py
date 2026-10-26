@@ -3,6 +3,8 @@
 - department: radiology/administration -> research/medical/development
 - role: admin/doctor/user -> pending/staff/admin (기본값 pending)
 - email, hashed_password, name, phone_number: NOT NULL
+- xray_images.uploader_id: NULL 허용 + ON DELETE SET NULL
+  (회원 탈퇴 시 X-Ray 기록은 보존하고 업로더만 비운다, 설계 문서 12-4절)
 
 기존 행에 새 Enum에 없는 값(radiology, doctor 등)이 남아 있으면 실패한다.
 기존 데이터의 매핑을 결정한 뒤 해당 행을 정리하고 실행한다.
@@ -52,9 +54,38 @@ def upgrade() -> None:
     )
     _set_required(nullable=False)
 
+    # 회원 탈퇴 시 X-Ray 기록은 보존하고 업로더만 비운다 (설계 문서 12-4)
+    op.drop_constraint("xray_images_ibfk_2", "xray_images", type_="foreignkey")
+    op.alter_column(
+        "xray_images",
+        "uploader_id",
+        existing_type=sa.Integer(),
+        nullable=True,
+        existing_comment="업로드한 의료진 ID",
+    )
+    op.create_foreign_key(
+        "fk_xray_images_uploader_id_users",
+        "xray_images",
+        "users",
+        ["uploader_id"],
+        ["id"],
+        ondelete="SET NULL",
+    )
+
 
 def downgrade() -> None:
     """Downgrade schema."""
+    # uploader_id가 NULL인 행(탈퇴한 사용자)이 있으면 NOT NULL로 되돌릴 수 없다.
+    op.drop_constraint("fk_xray_images_uploader_id_users", "xray_images", type_="foreignkey")
+    op.alter_column(
+        "xray_images",
+        "uploader_id",
+        existing_type=sa.Integer(),
+        nullable=False,
+        existing_comment="업로드한 의료진 ID",
+    )
+    op.create_foreign_key("xray_images_ibfk_2", "xray_images", "users", ["uploader_id"], ["id"])
+
     _set_required(nullable=True)
     op.alter_column(
         "users",
