@@ -17,6 +17,7 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
+from sqlalchemy.exc import OperationalError
 
 from app.apis.patient_apis import router
 from app.core.config import settings
@@ -26,6 +27,8 @@ from app.models import MedicalRecord, Patient, User, XrayImage
 from app.models.ai_analysis_result import AIAnalysisResult
 from app.models.enums import Department, Gender, Role
 from app.models.file_cleanup_job import FileCleanupJob
+from app.repositories.patient_repository import PatientRepository
+from app.services.file_cleanup_service import FileCleanupService
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sqlite_db import create_test_db  # noqa: E402
 
@@ -194,6 +197,44 @@ class PatientDetailUpdateDeleteTests(unittest.TestCase):
         self.assertFalse((self.xray / "1").exists())
         self.assertFalse((self.heatmap / "1").exists())
         self.assertEqual(self.client.delete("/api/v1/patients/1").status_code, 404)  # 작업도 없으면 404
+
+    def test_delete_cleanup_state_save_failure_returns_json(self):  # 리뷰 P2
+        db_error = OperationalError("UPDATE file_cleanup_jobs", {}, Exception("db down"))
+        with patch.object(FileCleanupService, "run", side_effect=db_error):
+            res = self.client.delete("/api/v1/patients/1")
+        self.assertEqual(res.status_code, 500)
+        self.assertEqual(res.json()["detail"], "파일 정리가 완료되지 않았습니다. 상태를 다시 조회해주세요.")
+        self.assertEqual(self.count(Patient, Patient.id == 1), 0)                              # DB 삭제는 완료
+        self.assertEqual(self.count(FileCleanupJob, FileCleanupJob.status == "pending"), 3)   # 작업은 보존
+        self.assertEqual(self.client.delete("/api/v1/patients/1").status_code, 204)          # 재요청으로 마무리
+        self.assertFalse((self.xray / "1").exists())
+
+    def test_delete_resume_failure_returns_json(self):  # 리뷰 P2
+        db_error = OperationalError("SELECT file_cleanup_jobs", {}, Exception("db down"))
+        with patch.object(FileCleanupService, "resume", side_effect=db_error):
+            res = self.client.delete("/api/v1/patients/1")
+        self.assertEqual(res.status_code, 500)
+        self.assertEqual(res.json()["detail"], "파일 정리가 완료되지 않았습니다. 상태를 다시 조회해주세요.")
+        self.assertEqual(self.count(Patient, Patient.id == 1), 0)
+
+    def test_file_paths_use_locking_read(self):  # 리뷰 P1: 잠금 읽기(FOR UPDATE)로 최신 경로를 수집
+        statements = []
+
+        async def run():
+            async with self.Session() as db:
+                original = db.scalars
+
+                async def spy(statement, *args, **kwargs):
+                    statements.append(statement)
+                    return await original(statement, *args, **kwargs)
+
+                db.scalars = spy
+                return await PatientRepository(db).file_paths(1)
+
+        files = asyncio.run(run())
+        self.assertEqual(len(statements), 2)
+        self.assertTrue(all(stmt._for_update_arg is not None for stmt in statements))
+        self.assertEqual(sorted(files), [("heatmap", "1/h1.png"), ("xray", "1/r1.png"), ("xray", "1/r2.png")])
 
     # ---------- 권한 ----------
     def test_pending_user_forbidden(self):

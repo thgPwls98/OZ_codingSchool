@@ -59,17 +59,22 @@ class PatientRepository:
     async def file_paths(self, patient_id: int) -> list[tuple[str, str]]:
         """환자 삭제 전에 지울 파일 목록을 모은다. 반드시 lock() 이후에 호출한다. (설계 6-3 ②)
 
+        잠금 읽기(FOR UPDATE)로 조회한다. MySQL 기본 REPEATABLE READ에서 일반 SELECT는
+        트랜잭션의 이전 스냅샷을 읽을 수 있어, 환자 잠금을 기다리는 사이 등록·교체된 이미지 경로를 놓칠 수 있다.
+
         반환: [(file_kind, 상대 경로), ...]  X-Ray 이미지와 AI 히트맵을 모두 포함하고 중복은 뺀다.
         """
         xray_paths = await self.db.scalars(
             select(XrayImage.image_url)
             .join(MedicalRecord, XrayImage.record_id == MedicalRecord.id)
             .where(MedicalRecord.patient_id == patient_id)
+            .with_for_update()
         )
         heatmap_paths = await self.db.scalars(
             select(AIAnalysisResult.heatmap_url)
             .join(MedicalRecord, AIAnalysisResult.record_id == MedicalRecord.id)
             .where(MedicalRecord.patient_id == patient_id)
+            .with_for_update()
         )
         files = [(FILE_KIND_XRAY, path) for path in xray_paths if path]
         files += [(FILE_KIND_HEATMAP, path) for path in heatmap_paths if path]

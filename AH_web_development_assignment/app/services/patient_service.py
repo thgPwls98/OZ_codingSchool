@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -9,6 +11,8 @@ from app.services.file_cleanup_service import TARGET_PATIENT, FileCleanupService
 PATIENT_NOT_FOUND = "환자를 찾을 수 없습니다."
 NOTHING_TO_UPDATE = "수정할 항목을 하나 이상 입력하세요."
 TRY_AGAIN_LATER = "잠시 후 다시 시도해주세요."
+
+logger = logging.getLogger(__name__)  # 환자 이름·연락처·파일 경로는 남기지 않는다 (설계 7-5)
 
 
 class PatientService:
@@ -80,7 +84,13 @@ class PatientService:
         cleanup = cleanup or FileCleanupService(db)
 
         # ⑤ 재요청이면 이전에 못 끝낸 파일 정리부터 이어 한다.
-        resumed = await cleanup.resume(TARGET_PATIENT, patient_id)
+        try:
+            resumed = await cleanup.resume(TARGET_PATIENT, patient_id)
+        except SQLAlchemyError:
+            # 작업 상태 저장 실패: 미완료로 보고 삭제는 계속 진행한 뒤 마지막에 정리 미완료(500 JSON)로 알린다.
+            await db.rollback()
+            logger.exception("환자 %s 파일 정리 재개 실패", patient_id)
+            resumed = False
 
         try:
             # ① 환자 잠금: 같은 환자의 진료기록 등록·수정·삭제와 순서를 맞춘다 (환자 → 진료기록)
@@ -105,5 +115,12 @@ class PatientService:
             ) from e
 
         # ④ commit 이후 실제 파일 삭제. 하나라도 못 지우면 작업을 남기고 500 (DB 삭제는 이미 완료)
-        if not await cleanup.run(jobs) or resumed is False:
+        try:
+            done = await cleanup.run(jobs)
+        except SQLAlchemyError as e:
+            # 작업 상태 저장 실패도 설계된 JSON 오류로 응답한다. 작업 행은 commit되어 있어 재요청·재처리로 이어진다.
+            await db.rollback()
+            logger.exception("환자 %s 파일 정리 상태 저장 실패", patient_id)
+            raise cleanup_incomplete_error() from e
+        if not done or resumed is False:
             raise cleanup_incomplete_error()
