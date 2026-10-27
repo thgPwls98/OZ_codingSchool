@@ -1,52 +1,55 @@
-from importlib.util import find_spec
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Request, Response, UploadFile, status
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
 from app.core.db.databases import async_get_db
-from app.core.dependencies import CurrentUser
-from app.models.enums import Department, Role
+from app.core.dependencies import MedicalStaffUser
 from app.repositories.medical_record_repository import MedicalRecordRepository
-from app.schemas.medical_record import MedicalRecordResponse, MedicalRecordUpdateRequest
+from app.schemas.medical_record import ChartNumber, MedicalRecordResponse, MedicalRecordUpdateRequest, Symptoms
 from app.services.medical_record_service import MedicalRecordService
 
-router = APIRouter(prefix="/api/v1/medical-records", tags=["Medical records"])
+router = APIRouter(prefix="/api/v1", tags=["medical-records"])
 
 
-async def require_medical_staff(current_user: CurrentUser):
-    # 공통 MedicalStaffUser 병합 시 이 의존성을 공통 의존성으로 교체한다.
-    if current_user.role != Role.ADMIN and not (
-        current_user.role == Role.STAFF and current_user.department == Department.MEDICAL
-    ):
-        raise HTTPException(403, "의료진만 등록할 수 있습니다.")
-    return current_user
-
-
-async def get_medical_record_service(
+def get_medical_record_service(
     db: Annotated[AsyncSession, Depends(async_get_db)],
-    medical_user: Annotated[object, Depends(require_medical_staff)],
-):
-    # 공통 기반은 별도 PR 담당. import를 요청 시점으로 두어 기존 API 구동을 유지한다.
-    required = (
-        "app.core.file_storage", "app.repositories.patient_repository",
-        "app.services.file_cleanup_service",
-    )
-    if any(find_spec(name) is None for name in required):
-        raise HTTPException(503, "공통 기반 준비 후 사용할 수 있습니다.")
-    from app.core import file_storage
-    from app.repositories.patient_repository import PatientRepository
-    from app.services.file_cleanup_service import (
-        TARGET_MEDICAL_RECORD, FileCleanupService, cleanup_incomplete_error,
-    )
+) -> MedicalRecordService:
+    return MedicalRecordService(MedicalRecordRepository(db))
 
-    return MedicalRecordService(
-        MedicalRecordRepository(db), PatientRepository(db), file_storage, FileCleanupService(db),
-        cleanup_error=cleanup_incomplete_error, target_type=TARGET_MEDICAL_RECORD
-    )
+
+# REQ-MDR-001 진료기록 등록 (팀원 2)
+# Form 필드와 파일을 Pydantic 모델 하나로 묶으면 파일 처리에서 오류가 나므로 각각 따로 받는다.
+@router.post(
+    "/medical-records",
+    response_model=MedicalRecordResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="진료기록 등록 (X-Ray 이미지 포함)",
+    responses={
+        401: {"description": "인증 실패"},
+        403: {"description": "의료진이 아님 (어드민 또는 의료 부서 스태프만 가능)"},
+        404: {"description": "환자 없음"},
+        409: {"description": "차트 넘버 중복"},
+        413: {"description": "이미지 10MB 초과"},
+        415: {"description": "JPG·PNG가 아닌 파일"},
+        422: {"description": "필수 항목 누락, 길이·형식 오류"},
+    },
+)
+async def create_medical_record(
+    current_user: MedicalStaffUser,
+    service: Annotated[MedicalRecordService, Depends(get_medical_record_service)],
+    response: Response,
+    patient_id: Annotated[int, Form(ge=1, description="환자 고유 ID")],
+    chart_number: Annotated[ChartNumber, Form(description="진료 차트 넘버 (1~50자)")],
+    symptoms: Annotated[Symptoms, Form(description="진료된 증상 (1~10,000자)")],
+    xray_image: Annotated[UploadFile, File(description="흉부 X-Ray 이미지 (JPG·PNG, 10MB 이하)")],
+):
+    record = await service.create(current_user, patient_id, chart_number, symptoms, xray_image)
+    response.headers["Location"] = f"/api/v1/medical-records/{record.id}"
+    return record
 
 
 async def parse_update(request: Request):
@@ -86,7 +89,7 @@ def _parse_form(form):
 
 
 @router.patch(
-    "/{record_id}", response_model=MedicalRecordResponse,
+    "/medical-records/{record_id}", response_model=MedicalRecordResponse,
     openapi_extra={"requestBody": {"content": {"multipart/form-data": {"schema": {
         "type": "object", "additionalProperties": False,
         "properties": {
@@ -98,7 +101,7 @@ def _parse_form(form):
 )
 async def update_record(
     record_id: Annotated[int, Path(gt=0)],
-    user: Annotated[object, Depends(require_medical_staff)],
+    user: MedicalStaffUser,
     service: Annotated[MedicalRecordService, Depends(get_medical_record_service)],
     parsed: Annotated[tuple, Depends(parse_update)],
 ):
@@ -106,10 +109,10 @@ async def update_record(
     return await service.update(record_id, data, upload, user.id)
 
 
-@router.delete("/{record_id}", status_code=204)
+@router.delete("/medical-records/{record_id}", status_code=204)
 async def delete_record(
     record_id: Annotated[int, Path(gt=0)],
-    user: Annotated[object, Depends(require_medical_staff)],
+    user: MedicalStaffUser,
     service: Annotated[MedicalRecordService, Depends(get_medical_record_service)],
 ):
     await service.delete(record_id)

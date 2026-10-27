@@ -1,4 +1,6 @@
 from sqlalchemy import delete, select
+from app.core.file_storage import FILE_KIND_HEATMAP, FILE_KIND_XRAY
+from app.models.patient import Patient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -31,8 +33,8 @@ class MedicalRecordRepository:
         images = await self.db.scalars(select(XrayImage.image_url).where(XrayImage.record_id == record_id))
         heatmaps = await self.db.scalars(select(AIAnalysisResult.heatmap_url).where(AIAnalysisResult.record_id == record_id))
         return list(dict.fromkeys(
-            [("xray", path) for path in images if path]
-            + [("heatmap", path) for path in heatmaps if path]
+            [(FILE_KIND_XRAY, path) for path in images if path]
+            + [(FILE_KIND_HEATMAP, path) for path in heatmaps if path]
         ))
 
     async def remove_image_data(self, record_id: int) -> None:
@@ -49,3 +51,20 @@ class MedicalRecordRepository:
                     xray_image_url=f"/api/v1/medical-records/{record.id}/xray-image",
                     uploader_id=image.uploader_id if image else None,
                     uploader_name=image.uploader.name if image and image.uploader else None)
+
+    async def get_patient(self, patient_id: int) -> Patient | None:
+        return await self.db.get(Patient, patient_id)
+
+    async def get_by_chart_number(self, chart_number: str) -> MedicalRecord | None:
+        result = await self.db.execute(
+            select(MedicalRecord).where(MedicalRecord.chart_number == chart_number)
+        )
+        return result.scalar_one_or_none()
+
+    async def add_with_image(self, record: MedicalRecord, image: XrayImage) -> None:
+        """진료기록 1행과 X-Ray 이미지 1행을 세션에 추가한다 (commit은 서비스, 설계 6-1 ⑤)"""
+        self.db.add(record)
+        await self.db.flush()  # record.id를 먼저 받아 이미지에 연결한다.
+        image.record_id = record.id
+        self.db.add(image)
+        await self.db.flush()

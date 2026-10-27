@@ -14,7 +14,7 @@ class AIAnalysisResult(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     record_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("medical_records.id"), nullable=False, comment="진료 기록 ID"
+        BigInteger, ForeignKey("medical_records.id", ondelete="CASCADE"), nullable=False, comment="진료 기록 ID"
     )
     is_pneumonia: Mapped[bool] = mapped_column(Boolean, nullable=False, comment="폐렴 여부")
     confidence: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, comment="판독 신뢰도 (%)")

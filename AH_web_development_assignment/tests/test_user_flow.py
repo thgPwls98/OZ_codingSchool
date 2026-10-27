@@ -114,7 +114,7 @@ class UserFlowTests(unittest.TestCase):
         self.assertEqual(self.login('Changed456!').status_code, 200)
         async def add_records():
             async with self.sessions() as db:
-                db.add(Patient(id=1, name='환자', age=30, phone='01099999999'))
+                db.add(Patient(id=1, name='환자', age=30, gender='male', phone_number='01099999999'))
                 await db.flush()
                 db.add(MedicalRecord(id=1, patient_id=1, chart_number='C1', symptoms='기침'))
                 await db.flush()

@@ -224,7 +224,7 @@ class MedicalRecordRepositoryTests(unittest.IsolatedAsyncioTestCase):
                     metadata.create_all(sync_connection)
                 await connection.run_sync(create_schema)
                 await connection.execute(insert(Patient).values(
-                    id=2, name='테스트', age=30, gender='female', phone='01012345678',
+                    id=2, name='테스트', age=30, gender='female', phone_number='01012345678',
                 ))
                 await connection.execute(insert(MedicalRecord), [
                     dict(id=1, patient_id=2, chart_number='C1', symptoms='원문'),
