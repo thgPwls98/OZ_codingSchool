@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     # 프록시 뒤에서는 브라우저에서 접속하는 외부 Origin을 명시한다.
     ALLOWED_ORIGINS: list[str] = []
 
+    # X-Ray 이미지 비공개 저장 위치 (5일차 설계 7-1). 프로젝트 폴더 기준 상대 경로
+    XRAY_STORAGE_DIR: str = "storage/xray"
+    # AI 히트맵 비공개 저장 위치 (파일 정리 작업에서 사용, AI 판독 API 구현 시 같은 값 사용)
+    HEATMAP_STORAGE_DIR: str = "storage/heatmap"
+    # X-Ray 이미지 최대 용량 10MB (5일차 설계 2-3, 7-3)
+    MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024
+
     model_config = {
         "env_file": ".env",
         "extra": "ignore"
