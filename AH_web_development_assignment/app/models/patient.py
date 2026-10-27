@@ -22,10 +22,11 @@ class Patient(TimestampMixin, Base):
     gender: Mapped[Gender] = mapped_column(GENDER_ENUM, nullable=False)
     # 화면·users 테이블과 같은 이름을 쓴다 (D19). 하이픈 없이 01012345678
     phone_number: Mapped[str] = mapped_column(String(11), nullable=False)
-    # 진료기록은 DB의 ON DELETE CASCADE가 지운다 (D4)
-    # - passive_deletes=True: 불러오지 않은 자식은 ORM이 조회하지 않고 DB에 맡긴다.
-    # - cascade="all, delete-orphan": 이미 불러온 자식은 외래키를 NULL로 바꾸지 않고 함께 삭제한다.
-    #   (cascade 없이 passive_deletes만 두면 불러온 자식의 patient_id를 NULL로 바꾸려다 실패한다)
+    # 연쇄 삭제 (D4)
+    # - passive_deletes=True: 로딩하지 않은 자식은 삭제 목적으로 조회하지 않고 DB의 ON DELETE CASCADE에 맡긴다.
+    # - delete cascade: 로딩된 자식은 ORM이 함께 삭제한다.
+    #   (없으면 로딩된 자식의 patient_id를 NULL로 바꾸려다 NOT NULL 제약에 걸린다)
+    # - delete-orphan: 컬렉션에서 분리된 자식도 삭제한다. (부모 없는 진료기록을 남기지 않는다)
     medical_records: Mapped[list["MedicalRecord"]] = relationship(
         back_populates="patient", cascade="all, delete-orphan", passive_deletes=True
     )

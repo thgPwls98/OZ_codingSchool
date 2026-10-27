@@ -100,8 +100,8 @@ class CascadeDeleteTests(unittest.TestCase):
         asyncio.run(self.engine.dispose())
         self.temp.cleanup()
 
-    def test_delete_patient_cascades_to_records_images_and_results(self):
-        async def scenario():
+    def seed(self):
+        async def insert():
             async with self.sessions() as db:
                 db.add(User(id=1, email="d@example.com", hashed_password="h", name="의사",
                             phone_number="01000000000", gender="male", department="medical", role="staff"))
@@ -116,13 +116,10 @@ class CascadeDeleteTests(unittest.TestCase):
                                         heatmap_url="h.png", ai_model="test"))
                 await db.commit()
 
-            async with self.sessions() as db:
-                patient = await db.get(Patient, 1)
-                # 관계를 불러온 상태에서도 ORM이 자식 행을 건드리지 않아야 한다 (passive_deletes)
-                await db.refresh(patient, ["medical_records"])
-                await db.delete(patient)
-                await db.commit()
+        asyncio.run(insert())
 
+    def assert_patient_1_deleted(self):
+        async def check():
             async with self.sessions() as db:
                 self.assertIsNone(await db.get(Patient, 1))
                 for model in (MedicalRecord, XrayImage, AIAnalysisResult):
@@ -131,8 +128,64 @@ class CascadeDeleteTests(unittest.TestCase):
                 self.assertIsNotNone(await db.get(MedicalRecord, 2))
                 self.assertIsNotNone(await db.get(User, 1))
 
-        asyncio.run(scenario())
+        asyncio.run(check())
 
+    def capture_selects(self, table):
+        """table을 조회하는 SELECT 문을 모은다. (ORM이 자식을 삭제 목적으로 조회했는지 확인)"""
+        statements = []
+
+        @event.listens_for(self.engine.sync_engine, "before_cursor_execute")
+        def capture(conn, cursor, statement, parameters, context, executemany):
+            if statement.lstrip().upper().startswith("SELECT") and f"FROM {table}" in statement:
+                statements.append(statement)
+
+        return statements
+
+    def test_delete_with_children_loaded(self):
+        """이미 로딩된 자식은 ORM이 함께 삭제한다. (delete cascade가 없으면 patient_id를 NULL로 바꾸려다 실패)"""
+        self.seed()
+
+        async def delete():
+            async with self.sessions() as db:
+                patient = await db.get(Patient, 1)
+                await db.refresh(patient, ["medical_records"])
+                record = patient.medical_records[0]
+                await db.refresh(record, ["xray_images", "ai_analysis_results"])
+                await db.delete(patient)
+                await db.commit()
+
+        asyncio.run(delete())
+        self.assert_patient_1_deleted()
+
+    def test_delete_without_loading_children(self):
+        """로딩하지 않은 자식은 ORM이 조회하지 않고 DB의 ON DELETE CASCADE가 삭제한다. (passive_deletes)"""
+        self.seed()
+        selects = self.capture_selects("medical_records")
+
+        async def delete():
+            async with self.sessions() as db:
+                await db.delete(await db.get(Patient, 1))
+                await db.commit()
+
+        asyncio.run(delete())
+        self.assertEqual(selects, [])
+        self.assert_patient_1_deleted()
+
+    def test_child_removed_from_collection_is_deleted(self):
+        """부모 컬렉션에서 분리한 자식도 삭제한다. (delete-orphan)"""
+        self.seed()
+
+        async def remove():
+            async with self.sessions() as db:
+                record = await db.get(MedicalRecord, 1)
+                await db.refresh(record, ["xray_images"])
+                record.xray_images.clear()
+                await db.commit()
+            async with self.sessions() as db:
+                self.assertIsNone(await db.get(XrayImage, 1))
+                self.assertIsNotNone(await db.get(MedicalRecord, 1))
+
+        asyncio.run(remove())
 
 if __name__ == "__main__":
     unittest.main()
