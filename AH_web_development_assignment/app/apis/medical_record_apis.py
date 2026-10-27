@@ -1,15 +1,22 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Request, Response, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
 from app.core.db.databases import async_get_db
-from app.core.dependencies import MedicalStaffUser
+from app.core.dependencies import MedicalStaffUser, StaffUser
 from app.repositories.medical_record_repository import MedicalRecordRepository
-from app.schemas.medical_record import ChartNumber, MedicalRecordResponse, MedicalRecordUpdateRequest, Symptoms
+from app.schemas.medical_record import (
+    ChartNumber,
+    MedicalRecordListItem,
+    MedicalRecordResponse,
+    MedicalRecordUpdateRequest,
+    Symptoms,
+)
 from app.services.medical_record_service import MedicalRecordService
 
 router = APIRouter(prefix="/api/v1", tags=["medical-records"])
@@ -117,3 +124,75 @@ async def delete_record(
 ):
     await service.delete(record_id)
     return Response(status_code=204)
+
+# ===== 조회 API (팀원 4) =====
+PatientId = Annotated[int, Path(ge=1, description="환자 고유 ID")]
+RecordId = Annotated[int, Path(ge=1, description="진료기록 ID")]
+
+# 의료 이미지 응답 헤더 (5일차 설계 5-4, 7-2)
+XRAY_RESPONSE_HEADERS = {
+    "Content-Disposition": "inline",           # 다운로드가 아니라 화면에 표시
+    "Cache-Control": "private, no-store",      # 브라우저·프록시에 의료 이미지 캐시 금지
+    "X-Content-Type-Options": "nosniff",       # 내용을 추측해 다른 형식으로 실행하는 것 차단
+}
+
+
+# REQ-MDR-002 환자별 진료기록 목록 (팀원 4)
+# 설계 11장은 patient_apis.py에 두기로 했지만, 진료기록 서비스와 함께 관리하고
+# 환자 API 작업과 같은 파일을 동시에 고쳐 생기는 충돌을 피하려고 이 라우터에 둔다. 주소는 같다.
+@router.get(
+    "/patients/{patient_id}/medical-records",
+    response_model=list[MedicalRecordListItem],
+    summary="환자별 진료기록 목록 조회",
+    responses={
+        401: {"description": "인증 실패"},
+        403: {"description": "대기자"},
+        404: {"description": "환자 없음 (기록이 없으면 200 [])"},
+    },
+)
+async def list_medical_records(
+    patient_id: PatientId,
+    current_user: StaffUser,
+    service: Annotated[MedicalRecordService, Depends(get_medical_record_service)],
+):
+    return await service.list_by_patient(patient_id)
+
+
+# REQ-MDR-003 진료기록 상세 (팀원 4)
+@router.get(
+    "/medical-records/{record_id}",
+    response_model=MedicalRecordResponse,
+    summary="진료기록 상세 조회",
+    responses={
+        401: {"description": "인증 실패"},
+        403: {"description": "대기자"},
+        404: {"description": "진료기록 없음"},
+    },
+)
+async def get_medical_record(
+    record_id: RecordId,
+    current_user: StaffUser,
+    service: Annotated[MedicalRecordService, Depends(get_medical_record_service)],
+):
+    return await service.get_detail(record_id)
+
+
+# REQ-MDR-003 X-Ray 이미지 조회 (팀원 4) - 인증된 사용자만 (설계 D10)
+@router.get(
+    "/medical-records/{record_id}/xray-image",
+    response_class=FileResponse,
+    summary="X-Ray 이미지 조회",
+    responses={
+        200: {"description": "이미지 바이너리", "content": {"image/png": {}, "image/jpeg": {}}},
+        401: {"description": "인증 실패"},
+        403: {"description": "대기자"},
+        404: {"description": "진료기록 없음, 또는 이미지 파일 없음"},
+    },
+)
+async def get_xray_image(
+    record_id: RecordId,
+    current_user: StaffUser,
+    service: Annotated[MedicalRecordService, Depends(get_medical_record_service)],
+):
+    path, media_type = await service.get_xray_file(record_id)
+    return FileResponse(path, media_type=media_type, headers=XRAY_RESPONSE_HEADERS)

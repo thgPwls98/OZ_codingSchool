@@ -2,9 +2,9 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
 
-from app.schemas.common import UTCDateTime
 from app.models.medical_record import MedicalRecord
 from app.models.xray_image import XrayImage
+from app.schemas.common import UTCDateTime
 
 # ===== 입력값 규칙 (5일차 설계 2-3) =====
 # multipart Form 필드에도 그대로 쓸 수 있도록 Annotated 타입으로 정의한다.
@@ -25,6 +25,40 @@ class MedicalRecordResponse(BaseModel):
     uploader_name: str | None
     created_at: UTCDateTime
     updated_at: UTCDateTime | None
+
+
+
+class MedicalRecordListItem(BaseModel):
+    """환자별 진료기록 목록의 한 줄 (5일차 설계 2-4, 5-2)"""
+
+    id: int
+    chart_number: str
+    symptoms: str  # 100자 초과 시 앞 100자 + …
+    created_at: UTCDateTime
+
+
+SYMPTOMS_PREVIEW_LENGTH = 100
+
+
+def summarize_symptoms(symptoms: str) -> str:
+    """목록용 증상 요약 (설계 2-4 증상 생략 규칙)
+
+    - 바이트가 아니라 글자 수 기준 (파이썬 str 길이 = 글자 수)
+    - 정확히 100자면 그대로, 101자부터 앞 100자 + …
+    - DB 원문은 바꾸지 않고 응답에서만 자른다.
+    """
+    if len(symptoms) <= SYMPTOMS_PREVIEW_LENGTH:
+        return symptoms
+    return symptoms[:SYMPTOMS_PREVIEW_LENGTH] + "…"
+
+
+def to_medical_record_list_item(record: MedicalRecord) -> MedicalRecordListItem:
+    return MedicalRecordListItem(
+        id=record.id,
+        chart_number=record.chart_number,
+        symptoms=summarize_symptoms(record.symptoms),
+        created_at=record.created_at,
+    )
 
 
 def xray_image_url(record_id: int) -> str:

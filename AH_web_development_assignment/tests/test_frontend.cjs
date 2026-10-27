@@ -44,3 +44,23 @@ test('password visibility toggles only the selected input', () => {
     ctx.utils.togglePassword('password', button);
     assert.equal(input.type, 'password');
 });
+
+test('getXrayImage sends bearer header without token in URL and returns blob after refresh', async () => {
+    const calls = [];
+    const blob = { type: 'image/png' };
+    const ctx = setup(async (url, init = {}) => {
+        calls.push({ url, auth: init.headers && init.headers.Authorization, responseType: init.responseType });
+        if (url.endsWith('/refresh')) return { ok: true, json: async () => ({ access_token: 'new' }) };
+        if (calls.filter(c => c.url.endsWith('/xray-image')).length === 1) return { status: 401 };
+        return { ok: true, status: 200, blob: async () => blob, json: async () => { throw new Error('not json'); } };
+    });
+    const result = await ctx.apis.getXrayImage('/api/v1/medical-records/7/xray-image');
+    const imageCalls = calls.filter(c => c.url.endsWith('/xray-image'));
+    assert.equal(result, blob);
+    assert.equal(imageCalls.length, 2);
+    assert.equal(imageCalls[0].url, '/api/v1/medical-records/7/xray-image');
+    assert.ok(!imageCalls[0].url.includes('token'));
+    assert.equal(imageCalls[0].auth, 'Bearer old');
+    assert.equal(imageCalls[1].auth, 'Bearer new');
+    assert.equal(imageCalls[0].responseType, undefined);
+});

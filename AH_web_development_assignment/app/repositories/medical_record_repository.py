@@ -6,6 +6,8 @@ from sqlalchemy.orm import selectinload
 
 from app.models.ai_analysis_result import AIAnalysisResult
 from app.models.medical_record import MedicalRecord
+
+from app.models.user import User
 from app.models.xray_image import XrayImage
 
 
@@ -69,3 +71,43 @@ class MedicalRecordRepository:
         image.record_id = record.id
         self.db.add(image)
         await self.db.flush()
+
+    # ===== 조회 (⑦ 목록, ⑧ 상세, ⑨ 이미지) - 조회만 하므로 잠그지 않는다 =====
+    async def list_by_patient(self, patient_id: int) -> list[MedicalRecord]:
+        """환자의 진료기록을 최신순으로 조회한다 (설계 5-2, 인덱스 patient_id + created_at)"""
+        result = await self.db.execute(
+            select(MedicalRecord)
+            .where(MedicalRecord.patient_id == patient_id)
+            .order_by(MedicalRecord.created_at.desc(), MedicalRecord.id.desc())
+        )
+        return list(result.scalars().all())
+
+    async def get_with_image(self, record_id: int) -> tuple[MedicalRecord, XrayImage, str | None] | None:
+        """진료기록 + X-Ray 이미지 1장 + 업로더 이름을 한 번에 조회한다 (설계 5-3, D15)
+
+        업로더가 탈퇴하면 uploader_id가 NULL이라 이름은 None이 된다 (외부 조인).
+        진료기록이 없거나 이미지가 없으면 None.
+        """
+        result = await self.db.execute(
+            select(MedicalRecord, XrayImage, User.name)
+            .join(XrayImage, XrayImage.record_id == MedicalRecord.id)
+            .outerjoin(User, User.id == XrayImage.uploader_id)
+            .where(MedicalRecord.id == record_id)
+            .order_by(XrayImage.id.desc())
+            .limit(1)
+        )
+        row = result.first()
+        return (row[0], row[1], row[2]) if row is not None else None
+
+    async def get_image(self, record_id: int) -> XrayImage | None:
+        """진료기록의 X-Ray 이미지 1장 (D15: 기록 1건 = 이미지 1장, 교체 시 최신 행)"""
+        result = await self.db.execute(
+            select(XrayImage)
+            .where(XrayImage.record_id == record_id)
+            .order_by(XrayImage.id.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def exists(self, record_id: int) -> bool:
+        return await self.db.get(MedicalRecord, record_id) is not None
