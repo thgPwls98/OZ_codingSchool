@@ -129,6 +129,7 @@ async function navigate(path, pushState = true) {
     const searchParams = Object.fromEntries(url.searchParams);
     
     state.currentPage = pathname;
+    pages.releaseXrayImage(); // 이전 상세 화면의 X-Ray Blob URL 해제
     const app = document.getElementById('app');
     app.innerHTML = '<div class="card">로딩 중...</div>';
 
