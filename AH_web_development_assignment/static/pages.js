@@ -143,6 +143,37 @@ const pages = {
         document.getElementById('cancel-btn').onclick = () => navigate(`/patients/${patientId}`);
     },
 
+    // 상세 화면에서 만든 X-Ray Blob URL. 화면을 벗어나거나 다시 그릴 때 해제한다.
+    currentXrayUrl: null,
+
+    releaseXrayImage() {
+        if (this.currentXrayUrl) {
+            URL.revokeObjectURL(this.currentXrayUrl);
+            this.currentXrayUrl = null;
+        }
+    },
+
+    /**
+     * 인증된 API로 X-Ray 이미지를 받아 Blob URL로 표시한다. (설계 문서 6-2절)
+     */
+    async loadXrayImage(imageUrl) {
+        const img = document.getElementById('xray-img');
+        this.releaseXrayImage();
+        if (!imageUrl) {
+            img.removeAttribute('src');
+            img.alt = 'X-Ray 이미지가 없습니다.';
+            return;
+        }
+        try {
+            const blob = await apis.getXrayImage(imageUrl);
+            this.currentXrayUrl = URL.createObjectURL(blob);
+            img.src = this.currentXrayUrl;
+        } catch (err) {
+            img.removeAttribute('src');
+            img.alt = 'X-Ray 이미지를 불러오지 못했습니다.';
+        }
+    },
+
     async renderRecordDetail(recordId) {
         const record = await apis.getMedicalRecord(recordId);
         const analyses = await apis.getMedicalRecordAnalyses(recordId);
@@ -154,7 +185,7 @@ const pages = {
         document.getElementById('chart-number').innerText = record.chart_number;
         document.getElementById('symptoms-text').innerText = record.symptoms;
         document.getElementById('created-at').innerText = new Date(record.created_at).toLocaleString();
-        document.getElementById('xray-img').src = record.xray_image_url;
+        await this.loadXrayImage(record.xray_image_url);
         document.getElementById('xray-uploader').textContent = record.uploader_id === null
             ? '탈퇴한 사용자' : (record.uploader_name || '업로더 정보 없음');
         

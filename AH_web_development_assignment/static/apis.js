@@ -9,13 +9,15 @@ const apis = {
     refreshPromise: null,
 
     async request(url, options = {}, skipAlert = false, retried = false) {
-        const headers = { ...options.headers };
+        // responseType은 fetch 옵션이 아니라 응답 처리 방식이므로 분리한다 ('json' 기본, 'blob' 이미지)
+        const { responseType = 'json', ...fetchOptions } = options;
+        const headers = { ...fetchOptions.headers };
         if (state.token) {
             headers['Authorization'] = `Bearer ${state.token}`;
         }
 
         try {
-            const response = await fetch(`${API_BASE}${url}`, { ...options, headers });
+            const response = await fetch(`${API_BASE}${url}`, { ...fetchOptions, headers });
             
             // 401 Unauthorized 처리 (토큰 만료 시 리프레시 시도)
             if (response.status === 401) {
@@ -78,6 +80,7 @@ const apis = {
                 throw errObj;
             }
             if (response.status === 204) return null;
+            if (responseType === 'blob') return await response.blob();
             return await response.json();
         } catch (err) {
             if (url !== '/users/login' && !skipAlert) {
@@ -269,6 +272,18 @@ const apis = {
      */
     async getMedicalRecordAnalyses(recordId) {
         return await this.request(`/medical-records/${recordId}/analyses`);
+    },
+
+    /**
+     * X-Ray 이미지 조회 (인증 필요)
+     * [REQ-MDR-003] 진료기록 상세에서 흉부 X-Ray 이미지를 확인할 수 있다.
+     * <img src>는 Authorization 헤더를 보낼 수 없으므로 토큰을 담아 Blob으로 받는다.
+     * 토큰을 URL 쿼리에 넣지 않는다. (설계 문서 6-2절)
+     */
+    async getXrayImage(imageUrl) {
+        // 응답의 xray_image_url은 /api/v1부터 시작하므로 request()의 API_BASE와 겹치지 않게 뗀다
+        const path = imageUrl.startsWith(API_BASE) ? imageUrl.slice(API_BASE.length) : imageUrl;
+        return await this.request(path, { responseType: 'blob' }, true);
     },
 
     // --- Admin ---

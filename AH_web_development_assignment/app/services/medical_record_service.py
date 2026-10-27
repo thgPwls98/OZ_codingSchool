@@ -1,4 +1,6 @@
+import logging
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -7,6 +9,7 @@ from app.core.file_storage import (
     FILE_KIND_XRAY,
     OrphanedUploadError,
     delete_xray_file,
+    resolve_xray_path,
     save_xray_image,
 )
 from app.models.medical_record import MedicalRecord
@@ -14,12 +17,24 @@ from app.models.user import User
 from app.models.xray_image import XrayImage
 from app.repositories.medical_record_repository import MedicalRecordRepository
 from app.repositories.patient_repository import PatientRepository
-from app.schemas.medical_record import MedicalRecordResponse, to_medical_record_response
+from app.schemas.medical_record import (
+    MedicalRecordListItem,
+    MedicalRecordResponse,
+    to_medical_record_list_item,
+    to_medical_record_response,
+)
 from app.services.file_cleanup_service import TARGET_PATIENT, FileCleanupService
 
 PATIENT_NOT_FOUND = "환자를 찾을 수 없습니다."
 CHART_NUMBER_DUPLICATED = "이미 사용 중인 차트 넘버입니다."
 SAVE_FAILED = "잠시 후 다시 시도해주세요."
+RECORD_NOT_FOUND = "진료기록을 찾을 수 없습니다."
+IMAGE_NOT_FOUND = "이미지 파일을 찾을 수 없습니다."
+
+# 저장할 때 파일 서명으로 정한 확장자 → 응답 Content-Type
+IMAGE_MEDIA_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
+
+logger = logging.getLogger(__name__)
 
 
 class MedicalRecordService:
@@ -98,3 +113,41 @@ class MedicalRecordService:
             await FileCleanupService(self.db).record_orphan(
                 TARGET_PATIENT, patient_id, [(FILE_KIND_XRAY, relative_path)]
             )
+
+    # ===== 조회 (팀원 4) - 데이터를 바꾸지 않으므로 잠금·commit 없음 =====
+
+    # REQ-MDR-002 환자별 진료기록 목록 (5일차 설계 5-2)
+    async def list_by_patient(self, patient_id: int) -> list[MedicalRecordListItem]:
+        if await self.repository.get_patient(patient_id) is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=PATIENT_NOT_FOUND)
+        records = await self.repository.list_by_patient(patient_id)
+        return [to_medical_record_list_item(record) for record in records]
+
+    # REQ-MDR-003 진료기록 상세 (5일차 설계 5-3)
+    async def get_detail(self, record_id: int) -> MedicalRecordResponse:
+        row = await self.repository.get_with_image(record_id)
+        if row is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=RECORD_NOT_FOUND)
+        record, image, uploader_name = row
+        return to_medical_record_response(record, image, uploader_name)
+
+    # REQ-MDR-003 X-Ray 이미지 조회 (5일차 설계 5-4, 7-2)
+    async def get_xray_file(self, record_id: int) -> tuple[Path, str]:
+        """이미지 파일 경로와 Content-Type을 돌려준다. 실제 저장 경로는 응답에 노출하지 않는다."""
+        image = await self.repository.get_image(record_id)
+        if image is None:
+            detail = IMAGE_NOT_FOUND if await self.repository.exists(record_id) else RECORD_NOT_FOUND
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+
+        try:
+            path = resolve_xray_path(image.image_url)
+        except ValueError:
+            # 저장 폴더 밖을 가리키는 값. 이유를 알려주지 않고 404로 처리하고 로그에만 남긴다 (경로는 기록하지 않음, 설계 7-5)
+            logger.warning("저장 폴더 밖 X-Ray 경로가 조회됨: xray_image_id=%s", image.id)
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=IMAGE_NOT_FOUND)
+
+        media_type = IMAGE_MEDIA_TYPES.get(path.suffix.lower())
+        if media_type is None or not path.is_file():
+            logger.warning("X-Ray 파일 없음: xray_image_id=%s", image.id)
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=IMAGE_NOT_FOUND)
+        return path, media_type
