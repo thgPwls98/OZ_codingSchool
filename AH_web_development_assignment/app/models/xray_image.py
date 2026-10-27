@@ -13,7 +13,7 @@ class XrayImage(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     record_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("medical_records.id"), nullable=False, comment="진료 기록 ID"
+        BigInteger, ForeignKey("medical_records.id", ondelete="CASCADE"), nullable=False, comment="진료 기록 ID"
     )
     # 회원 탈퇴 시 NULL로 바뀐다 (X-Ray 기록은 보존)
     uploader_id: Mapped[int | None] = mapped_column(
