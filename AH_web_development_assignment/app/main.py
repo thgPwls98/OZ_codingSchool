@@ -11,6 +11,7 @@ from app.apis.auth import router as auth_router
 from app.apis.admin_apis import router as admin_router
 from app.apis.practice_apis import router as practice_router
 from app.apis.user_apis import router as user_router
+from app.apis.medical_record_apis import router as medical_record_router
 
 app = FastAPI()
 
@@ -30,6 +31,7 @@ app.include_router(practice_router)
 app.include_router(user_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(medical_record_router)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
