@@ -37,9 +37,11 @@
         <form id="update-password-form">
             <label for="old-password">현재 비밀번호</label>
             <input type="password" id="old-password" required>
+        <button type="button" onclick="utils.togglePassword('old-password', this)" aria-controls="old-password" aria-pressed="false">비밀번호 보기</button>
 
             <label for="new-password">새 비밀번호</label>
             <input type="password" id="new-password" required>
+        <button type="button" onclick="utils.togglePassword('new-password', this)" aria-controls="new-password" aria-pressed="false">비밀번호 보기</button>
 
             <button type="submit" style="margin-top: 0.5rem; background-color: var(--secondary-color);">비밀번호 변경</button>
         </form>
@@ -49,7 +51,7 @@
 
     <section class="danger-zone">
         <h3 style="color: var(--danger-color);">계정 관리</h3>
-        <p style="font-size: 0.9rem; color: #666;">계정을 삭제하면 모든 데이터가 영구적으로 삭제됩니다.</p>
+        <p style="font-size: 0.9rem; color: #666;">계정은 영구적으로 삭제되며, X-ray와 진료 데이터는 보존됩니다.</p>
         <button id="delete-me-btn" style="background-color: var(--danger-color);">회원 탈퇴</button>
     </section>
 </div>

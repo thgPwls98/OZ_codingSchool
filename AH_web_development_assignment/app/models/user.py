@@ -23,4 +23,4 @@ class User(TimestampMixin, Base):
         server_default=Role.PENDING.value,
     )
     is_active = Column(Boolean, nullable=False, default=True, server_default=text("1"))
-    xray_images = relationship("XrayImage", back_populates="uploader")
+    xray_images = relationship("XrayImage", back_populates="uploader", passive_deletes=True)

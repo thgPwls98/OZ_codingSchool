@@ -54,6 +54,8 @@ def _error_and_clear_cookie(status_code: int, detail: str) -> JSONResponse:
     """오류 응답을 보내면서 리프레시 쿠키도 삭제한다 (설계 문서 5-3)"""
     response = JSONResponse(status_code=status_code, content={"detail": detail})
     _delete_refresh_cookie(response)
+    if status_code == status.HTTP_401_UNAUTHORIZED:
+        response.headers["WWW-Authenticate"] = "Bearer"
     return response
 
 

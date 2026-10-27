@@ -155,6 +155,8 @@ const pages = {
         document.getElementById('symptoms-text').innerText = record.symptoms;
         document.getElementById('created-at').innerText = new Date(record.created_at).toLocaleString();
         document.getElementById('xray-img').src = record.xray_image_url;
+        document.getElementById('xray-uploader').textContent = record.uploader_id === null
+            ? '탈퇴한 사용자' : (record.uploader_name || '업로더 정보 없음');
         
         document.getElementById('predict-btn').onclick = () => this.handlePredict(recordId);
         document.getElementById('back-to-patient-btn').onclick = () => navigate(`/patients/${record.patient_id}`);
@@ -322,7 +324,7 @@ const pages = {
     },
 
     async handleDeleteMe() {
-        if (!confirm('정말로 탈퇴하시겠습니까? 모든 데이터가 삭제됩니다.')) return;
+        if (!confirm('정말로 탈퇴하시겠습니까? 계정은 삭제되며 X-ray와 진료 데이터는 보존됩니다.')) return;
 
         try {
             await apis.deleteMe();

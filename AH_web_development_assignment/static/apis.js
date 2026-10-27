@@ -6,19 +6,9 @@
 const API_BASE = '/api/v1';
 
 const apis = {
-    isRefreshing: false,
-    refreshSubscribers: [],
+    refreshPromise: null,
 
-    subscribeTokenRefresh(cb) {
-        this.refreshSubscribers.push(cb);
-    },
-
-    onTokenRefreshed(token) {
-        this.refreshSubscribers.map(cb => cb(token));
-        this.refreshSubscribers = [];
-    },
-
-    async request(url, options = {}, skipAlert = false) {
+    async request(url, options = {}, skipAlert = false, retried = false) {
         const headers = { ...options.headers };
         if (state.token) {
             headers['Authorization'] = `Bearer ${state.token}`;
@@ -34,53 +24,28 @@ const apis = {
                     return { status: 401 };
                 }
                 
-                // 토큰이 없는 경우 리프레시 시도 없이 로그아웃
-                if (!state.token) {
+                if (!state.token || retried) {
                     await logout();
-                    return null;
+                    throw new Error('다시 로그인해주세요.');
                 }
-
-                // 이미 리프레시 중이면 대기열에 추가
-                if (this.isRefreshing) {
-                    return new Promise((resolve) => {
-                        this.subscribeTokenRefresh(token => {
-                            headers['Authorization'] = `Bearer ${token}`;
-                            resolve(this.request(url, options, skipAlert));
-                        });
-                    });
-                }
-
-                this.isRefreshing = true;
-                try {
-                    const refreshResponse = await fetch(`${API_BASE}/users/refresh`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-
-                    if (refreshResponse.ok) {
-                        const data = await refreshResponse.json();
+                // 동시 요청은 같은 재발급을 기다린다. 실패한 대기 요청도 모두 종료한다.
+                if (!this.refreshPromise) {
+                    this.refreshPromise = this.refresh().then(async response => {
+                        if (!response.ok) throw new Error('다시 로그인해주세요.');
+                        const data = await response.json();
                         state.token = data.access_token;
                         localStorage.setItem('token', state.token);
-                        
-                        this.isRefreshing = false;
-                        this.onTokenRefreshed(state.token);
-                        
-                        // 원래 요청 재시도
-                        headers['Authorization'] = `Bearer ${state.token}`;
-                        return await this.request(url, options, skipAlert);
-                    } else {
-                        // 리프레시 실패 시 로그아웃
-                        this.isRefreshing = false;
-                        await logout();
-                        return null;
-                    }
-                } catch (refreshErr) {
-                    this.isRefreshing = false;
-                    await logout();
-                    return null;
+                    }).finally(() => { this.refreshPromise = null; });
                 }
+                try {
+                    await this.refreshPromise;
+                } catch (error) {
+                    await logout();
+                    throw error;
+                }
+                return await this.request(url, options, skipAlert, true);
             }
-            
+
             if (!response.ok) {
                 let error;
                 try {

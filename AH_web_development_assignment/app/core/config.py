@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     # 리프레시 쿠키 Secure 속성. 로컬(http) 개발은 False, 운영(https)은 True
     COOKIE_SECURE: bool = False
+    # 프록시 뒤에서는 브라우저에서 접속하는 외부 Origin을 명시한다.
+    ALLOWED_ORIGINS: list[str] = []
 
     model_config = {
         "env_file": ".env",

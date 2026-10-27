@@ -64,7 +64,8 @@ def decode_token(token: str, expected_type: TokenType) -> int | None:
     """
     try:
         payload = jwt.decode(
-            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM],
+            options={"require": ["exp", "iat", "user_id", "token_type"]},
         )
     except jwt.InvalidTokenError:
         return None
@@ -73,6 +74,6 @@ def decode_token(token: str, expected_type: TokenType) -> int | None:
         return None
 
     user_id = payload.get("user_id")
-    if not isinstance(user_id, int):
+    if type(user_id) is not int or user_id < 1:
         return None
     return user_id
