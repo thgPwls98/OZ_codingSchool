@@ -1,6 +1,7 @@
 import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
+from sqlalchemy.exc import SQLAlchemyError
 
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
@@ -94,3 +95,14 @@ class RoleServiceTests(unittest.IsolatedAsyncioTestCase):
         result = await service.change_role(1, RoleChangeRequest(user_id=2, new_role="pending"))
         self.assertIs(result, user)
         repository.update_role.assert_not_awaited()
+
+
+class DeleteFailureTests(unittest.IsolatedAsyncioTestCase):
+    async def test_delete_failure_rolls_back_and_returns_500(self):
+        repository = AsyncMock()
+        repository.delete.side_effect = SQLAlchemyError('database failure')
+        with self.assertRaises(HTTPException) as error:
+            await UserService(repository).delete_me(SimpleNamespace(id=1))
+        self.assertEqual(error.exception.status_code, 500)
+        self.assertEqual(error.exception.detail, '잠시 후 다시 시도해주세요.')
+        repository.db.rollback.assert_awaited_once()

@@ -3,6 +3,14 @@
  */
 
 const utils = {
+    togglePassword(inputId, button) {
+        const input = document.getElementById(inputId);
+        const visible = input.type === 'password';
+        input.type = visible ? 'text' : 'password';
+        button.setAttribute('aria-pressed', String(visible));
+        button.textContent = visible ? '비밀번호 숨기기' : '비밀번호 보기';
+    },
+
     showAlert(message, type = 'info', title = '알림') {
         const modal = document.getElementById('alert-modal');
         const iconEl = document.getElementById('alert-modal-icon');
