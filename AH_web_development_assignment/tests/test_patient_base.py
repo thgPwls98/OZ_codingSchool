@@ -18,6 +18,7 @@ from app.models.medical_record import MedicalRecord
 from app.models.patient import Patient
 from app.models.user import User
 from app.models.xray_image import XrayImage
+from app.repositories.patient_repository import PatientRepository
 from app.schemas.patient import (
     PatientCreateRequest,
     PatientResponse,
@@ -170,6 +171,18 @@ class CascadeDeleteTests(unittest.TestCase):
         asyncio.run(delete())
         self.assertEqual(selects, [])
         self.assert_patient_1_deleted()
+
+    def test_lock_returns_patient_or_none(self):
+        """PatientRepository.lock은 환자를 잠가 반환하고, 없으면 None (MySQL에서는 SELECT ... FOR UPDATE)"""
+        self.seed()
+
+        async def lock():
+            async with self.sessions() as db:
+                repository = PatientRepository(db)
+                self.assertEqual((await repository.lock(1)).name, VALID_PATIENT["name"])
+                self.assertIsNone(await repository.lock(999))
+
+        asyncio.run(lock())
 
     def test_child_removed_from_collection_is_deleted(self):
         """부모 컬렉션에서 분리한 자식도 삭제한다. (delete-orphan)"""
