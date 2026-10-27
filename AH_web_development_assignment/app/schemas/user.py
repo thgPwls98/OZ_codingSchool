@@ -43,7 +43,7 @@ Password = Annotated[str, Field(min_length=8, max_length=64), AfterValidator(val
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=20)]
 PhoneNumber = Annotated[
     str,
-    Field(pattern=r"^010\d{8}$", description="010으로 시작하는 숫자 11자리 (하이픈 없음)"),
+    Field(pattern=r"^010[0-9]{8}$", description="010으로 시작하는 숫자 11자리 (하이픈 없음)"),
 ]
 
 
