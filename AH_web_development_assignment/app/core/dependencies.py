@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db.databases import async_get_db
 from app.core.security import decode_token
-from app.models.enums import Role
+from app.models.enums import Department, Role
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 
@@ -51,6 +51,36 @@ async def require_admin(
     return current_user
 
 
+async def require_staff(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    """스태프 이상(staff, admin)만 통과한다. 대기자(pending)는 403 (5일차 설계 2-2)"""
+    if current_user.role not in (Role.STAFF, Role.ADMIN):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="접근 권한이 없습니다.",
+        )
+    return current_user
+
+
+async def require_medical_staff(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    """어드민 또는 의료 부서 스태프만 통과한다 (5일차 설계 2-2, D2)"""
+    is_admin = current_user.role == Role.ADMIN
+    is_medical_staff = (
+        current_user.role == Role.STAFF and current_user.department == Department.MEDICAL
+    )
+    if not (is_admin or is_medical_staff):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="의료진만 접근할 수 있습니다.",
+        )
+    return current_user
+
+
 # 다른 API에서 짧게 쓰기 위한 별칭
 CurrentUser = Annotated[User, Depends(get_current_user)]
 AdminUser = Annotated[User, Depends(require_admin)]
+StaffUser = Annotated[User, Depends(require_staff)]
+MedicalStaffUser = Annotated[User, Depends(require_medical_staff)]
