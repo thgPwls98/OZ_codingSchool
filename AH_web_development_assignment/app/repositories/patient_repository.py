@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.patient import Patient
+from app.schemas.patient import PatientSearchParams
 
 
 class PatientRepository:
@@ -27,3 +28,25 @@ class PatientRepository:
             select(Patient).where(Patient.id == patient_id).with_for_update()
         )
         return result.scalar_one_or_none()
+
+    # ===== 환자 등록·목록 (팀원 1) =====
+    async def add(self, patient: Patient) -> Patient:
+        """환자를 세션에 추가하고 id를 받는다 (commit은 서비스)"""
+        self.db.add(patient)
+        await self.db.flush()
+        return patient
+
+    async def search(self, params: PatientSearchParams) -> list[Patient]:
+        """모든 조건을 AND로 결합하고 최근 등록순으로 반환한다. (설계 문서 4-2)"""
+        statement = select(Patient)
+        if params.name:
+            # 검색어의 %와 _도 와일드카드가 아닌 일반 문자로 검색한다.
+            statement = statement.where(Patient.name.contains(params.name, autoescape=True))
+        if params.gender is not None:
+            statement = statement.where(Patient.gender == params.gender)
+        if params.min_age is not None:
+            statement = statement.where(Patient.age >= params.min_age)
+        if params.max_age is not None:
+            statement = statement.where(Patient.age <= params.max_age)
+        result = await self.db.execute(statement.order_by(Patient.id.desc()))
+        return list(result.scalars().all())
