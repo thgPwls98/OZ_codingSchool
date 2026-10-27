@@ -362,7 +362,10 @@ GET /api/v1/patients?name=김&gender=female&min_age=30&max_age=50
 | 환자 이미지 폴더 `storage/xray/{patient_id}/` | 폴더째 삭제 | 서비스에서 커밋 후 삭제 (6-3절) |
 | AI 히트맵 파일 | 삭제 | 서비스에서 커밋 후 삭제 |
 
-> DB 외래키의 `ON DELETE CASCADE`만으로는 부족하다. SQLAlchemy 관계에 `passive_deletes=True`가 없으면 ORM이 자식 행을 먼저 불러와 처리하려다 외래키 오류가 날 수 있으므로, 관계에도 함께 지정한다 (10-1절).
+> DB 외래키의 `ON DELETE CASCADE`만으로는 부족하다. ORM 관계에 `passive_deletes=True`와 `cascade="all, delete-orphan"`을 함께 지정한다 (D4, 10-1절).
+> - `passive_deletes=True`: 아직 로딩하지 않은 자식을 삭제 목적으로 조회하지 않고 DB의 `CASCADE`에 맡긴다.
+> - `delete` cascade: 이미 로딩된 자식은 ORM이 처리하는데, 이 설정이 없으면 자식의 외래키를 `NULL`로 바꾸려다 `NOT NULL` 제약에 걸린다. 있으면 로딩된 자식을 함께 삭제한다.
+> - `delete-orphan`: 부모 컬렉션에서 분리된 자식도 삭제한다. 진료기록·이미지·AI 결과는 부모 없이 남으면 안 되므로 이 동작까지 채택한다.
 >
 > 화면의 "관련 데이터가 모두 삭제됩니다" 확인 팝업은 프론트엔드가 처리하고, `확인했습니다`를 누른 경우에만 이 API를 호출한다.
 
@@ -683,7 +686,7 @@ NFR-PTNT-001, NFR-MDR-001: 모든 API의 처리 시간은 최대 3초를 목표�
 | D1 | 주소·필드명·응답 형식을 **프론트엔드 코드 기준**으로 정함 | 요구사항만 보고 새로 정의 | 화면이 이미 존재하므로, 다르면 API가 동작해도 화면에서 오류가 난다 (4일차 교훈) |
 | D2 | 등록 권한을 **"어드민 또는 의료 부서 스태프"** 로 제한 | 스태프 전체 허용 | 요구사항이 등록만 "의료인"으로 구분해 표현했다 |
 | D3 | 증상 100자 생략을 **서버**에서 처리 | 화면에서 처리 | 현재 화면은 받은 값을 그대로 표시한다. 목록 응답 크기도 줄어든다 |
-| D4 | 연쇄 삭제를 **DB `ON DELETE CASCADE` + ORM `passive_deletes=True`** 로 처리 | 서비스에서 테이블마다 직접 삭제 | 삭제 누락 위험이 없고 코드가 단순하다. ORM이 자식 행을 먼저 건드리지 않게 `passive_deletes`를 함께 건다. 파일은 DB가 지울 수 없어 서비스에서 처리 |
+| D4 | 연쇄 삭제는 **DB 외래키의 `ON DELETE CASCADE`와 부모→자식 ORM 관계의 `passive_deletes=True`, `cascade="all, delete-orphan"`** 을 함께 사용한다 | 서비스에서 테이블마다 직접 삭제 / `passive_deletes`만 지정 | 로딩된 자식은 ORM이 삭제하고, 로딩되지 않은 자식은 DB가 삭제한다. 관계에서 분리된 자식도 삭제 대상으로 처리한다. `passive_deletes`만 지정하면 로딩된 자식의 외래키를 `NULL`로 바꾸려다 실패한다. 실제 파일은 DB가 지울 수 없어 서비스에서 정리한다 |
 | D5 | 이미지 파일명을 **UUID**로 저장 | 원본 파일명 사용 | 덮어쓰기, 한글·특수문자 경로 문제, 경로 조작 공격을 막는다 |
 | D6 | 환자 연락처 **중복 허용** | 회원처럼 UNIQUE | 가족이 같은 번호를 쓰거나 동명이인이 있을 수 있다 |
 | D7 | 이미지는 기존 **`xray_images` 테이블**에 저장 | 진료기록에 `xray_image_path` 컬럼 추가 | 기존 테이블이 업로더·촬영 일시를 담고 있으며, AI 결과는 같은 진료기록의 자식으로 관리된다 |
@@ -714,8 +717,8 @@ NFR-PTNT-001, NFR-MDR-001: 모든 API의 처리 시간은 최대 3초를 목표�
 | `medical_records.patient_id` FK | 삭제 정책 없음 | `ondelete="CASCADE"` | D4 |
 | `xray_images.record_id` FK | 삭제 정책 없음 | `ondelete="CASCADE"` | D4 |
 | `ai_analysis_results.record_id` FK | 삭제 정책 없음 | `ondelete="CASCADE"` | D4 |
-| `Patient.medical_records` 관계 | 옵션 없음 | `passive_deletes=True` | D4 |
-| `MedicalRecord.xray_images`, `MedicalRecord.ai_analysis_results` 관계 | 옵션 없음 | `passive_deletes=True` | D4 |
+| `Patient.medical_records` 관계 | 옵션 없음 | `passive_deletes=True`, `cascade="all, delete-orphan"` | D4 |
+| `MedicalRecord.xray_images`, `MedicalRecord.ai_analysis_results` 관계 | 옵션 없음 | `passive_deletes=True`, `cascade="all, delete-orphan"` | D4 |
 | 인덱스 | 없음 | `patients.age`, `medical_records(patient_id, created_at)` | 8절, D17 |
 | `core/dependencies.py` | `CurrentUser`, `AdminUser` | `StaffUser`, `MedicalStaffUser` 추가 | D2 |
 | `core/config.py` | - | `XRAY_STORAGE_DIR = "storage/xray"`, `MAX_UPLOAD_SIZE = 10MB` | D10 |
