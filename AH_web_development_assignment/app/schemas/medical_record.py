@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
 
 from app.models.medical_record import MedicalRecord
 from app.models.xray_image import XrayImage
@@ -25,6 +25,7 @@ class MedicalRecordResponse(BaseModel):
     uploader_name: str | None
     created_at: UTCDateTime
     updated_at: UTCDateTime | None
+
 
 
 class MedicalRecordListItem(BaseModel):
@@ -83,3 +84,17 @@ def to_medical_record_response(
         created_at=record.created_at,
         updated_at=record.updated_at,
     )
+
+
+class MedicalRecordUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    chart_number: str | None = None
+    symptoms: str | None = None
+
+    @field_validator("chart_number", "symptoms", mode="before")
+    @classmethod
+    def validate_text(cls, value, info):
+        limit = 50 if info.field_name == "chart_number" else 10_000
+        if not isinstance(value, str) or not 1 <= len(value.strip()) <= limit:
+            raise ValueError(f"공백 제거 후 1~{limit}자 문자열이어야 합니다.")
+        return value.strip()
