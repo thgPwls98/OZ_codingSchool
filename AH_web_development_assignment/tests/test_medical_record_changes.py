@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.apis.medical_record_apis import get_medical_record_service, router
 from app.core.dependencies import get_current_user
@@ -130,6 +130,27 @@ class MedicalRecordServiceTests(unittest.IsolatedAsyncioTestCase):
         self.cleanup.enqueue.assert_called_with('medical_record', 1, [('xray', 'new.png')])
         self.assertEqual(self.db.commit.await_count, 2)
 
+    async def test_cleanup_job_commit_failure_returns_safe_500(self):
+        self.db.commit.side_effect = SQLAlchemyError('internal database details')
+        self.storage.delete_xray_file.side_effect = OSError('disk')
+        with self.assertRaises(HTTPException) as caught:
+            await self.service.update(1, MedicalRecordUpdateRequest(), object(), 4)
+        self.assertEqual(caught.exception.status_code, 500)
+        self.assertEqual(caught.exception.detail, '잠시 후 다시 시도해주세요.')
+        self.assertEqual(self.db.rollback.await_count, 2)
+
+    async def test_partial_upload_cleanup_commit_failure_returns_safe_500(self):
+        from app.core.file_storage import OrphanedUploadError
+        self.storage.save_xray_image.side_effect = OrphanedUploadError(
+            HTTPException(413, 'too large'), 'partial.png'
+        )
+        self.db.commit.side_effect = SQLAlchemyError('internal database details')
+        with self.assertRaises(HTTPException) as caught:
+            await self.service.update(1, MedicalRecordUpdateRequest(), object(), 4)
+        self.assertEqual(caught.exception.status_code, 500)
+        self.assertEqual(caught.exception.detail, '잠시 후 다시 시도해주세요.')
+        self.assertEqual(self.db.rollback.await_count, 2)
+
     async def test_post_commit_cleanup_failure_does_not_remove_new_image(self):
         self.cleanup.run.side_effect = OSError('disk')
         with self.assertRaises(HTTPException) as caught:
@@ -196,6 +217,17 @@ class MedicalRecordServiceTests(unittest.IsolatedAsyncioTestCase):
 
 
 class MedicalRecordRepositoryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_cleanup_paths_use_current_locking_reads_on_mysql(self):
+        from sqlalchemy.dialects import mysql
+        from app.repositories.medical_record_repository import MedicalRecordRepository
+        db = AsyncMock()
+        db.scalars.side_effect = [['1/image.png'], ['1/heatmap.png']]
+        paths = await MedicalRecordRepository(db).file_paths(1)
+        self.assertEqual(paths, [('xray', '1/image.png'), ('heatmap', '1/heatmap.png')])
+        for call in db.scalars.await_args_list:
+            sql = str(call.args[0].compile(dialect=mysql.dialect()))
+            self.assertIn('FOR UPDATE', sql)
+
     async def test_sqlite_queries_collect_and_remove_image_and_ai_data(self):
         from sqlalchemy import DefaultClause, MetaData, event, insert, select, text
         from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine

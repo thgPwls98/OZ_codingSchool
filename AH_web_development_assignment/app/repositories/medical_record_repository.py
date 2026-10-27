@@ -30,8 +30,9 @@ class MedicalRecordRepository:
 
     async def file_paths(self, record_id: int) -> list[tuple[str, str]]:
         """공통 FILE_KIND_XRAY/FILE_KIND_HEATMAP 값과 종류별 상대 경로를 반환한다."""
-        images = await self.db.scalars(select(XrayImage.image_url).where(XrayImage.record_id == record_id))
-        heatmaps = await self.db.scalars(select(AIAnalysisResult.heatmap_url).where(AIAnalysisResult.record_id == record_id))
+        # 부모 잠금 이전 조회의 스냅샷 대신, 잠금 획득 후 최신 경로를 수집한다.
+        images = await self.db.scalars(select(XrayImage.image_url).where(XrayImage.record_id == record_id).with_for_update())
+        heatmaps = await self.db.scalars(select(AIAnalysisResult.heatmap_url).where(AIAnalysisResult.record_id == record_id).with_for_update())
         return list(dict.fromkeys(
             [(FILE_KIND_XRAY, path) for path in images if path]
             + [(FILE_KIND_HEATMAP, path) for path in heatmaps if path]

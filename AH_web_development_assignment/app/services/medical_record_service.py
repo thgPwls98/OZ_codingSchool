@@ -60,8 +60,17 @@ class MedicalRecordService:
             await self.storage.delete_xray_file(path)
         except Exception:
             # 원래 변경은 rollback된 상태. 새 파일 정리 작업만 별도로 영속화한다.
-            self.cleanup.enqueue(self.target_type, record_id, [(self.storage.FILE_KIND_XRAY, path)])
+            await self._persist_replacement_cleanup(path, record_id)
+
+    async def _persist_replacement_cleanup(self, path, record_id):
+        try:
+            self.cleanup.enqueue(
+                self.target_type, record_id, [(self.storage.FILE_KIND_XRAY, path)]
+            )
             await self.db.commit()
+        except SQLAlchemyError as exc:
+            await self.db.rollback()
+            raise HTTPException(500, SAVE_FAILED) from exc
 
     @staticmethod
     def _is_chart_conflict(exc):
@@ -97,11 +106,7 @@ class MedicalRecordService:
             await self.db.rollback()
             if isinstance(exc, OrphanedUploadError):
                 # 저장이 끝나기 전 실패해서 반환받지 못한 부분 파일도 추적한다.
-                self.cleanup.enqueue(
-                    self.target_type, record_id,
-                    [(self.storage.FILE_KIND_XRAY, exc.relative_path)],
-                )
-                await self.db.commit()
+                await self._persist_replacement_cleanup(exc.relative_path, record_id)
                 raise exc.original from None
             if new_path is not None:
                 await self._discard_replacement_file(new_path, record_id)
