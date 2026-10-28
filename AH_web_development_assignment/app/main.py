@@ -1,10 +1,13 @@
+import logging
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from app.core.config import settings
 from starlette.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 from starlette.responses import FileResponse
 
 from app.apis.auth import router as auth_router
@@ -13,9 +16,31 @@ from app.apis.analysis_apis import router as analysis_router
 from app.apis.medical_record_apis import router as medical_record_router
 from app.apis.patient_apis import router as patient_router
 from app.apis.practice_apis import router as practice_router
+from app.apis.prediction_apis import router as prediction_router
 from app.apis.user_apis import router as user_router
 
-app = FastAPI()
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """AI 모델을 서버 시작 때 1번만 메모리에 올린다 (6일차 설계 6-2절, D8·D17)
+
+    로딩(약 17초)에 실패해도 서버는 시작한다. 이때 ⑫ 신규 추론만 503이고 나머지 API는 정상이다.
+    """
+    if settings.AI_PRELOAD_MODEL:
+        try:
+            from worker import model as ai_model
+
+            await run_in_threadpool(ai_model.load_default_model)
+        except Exception as exc:
+            logger.error("AI 모델 미리 로딩 실패 (%s): 예측 API는 503, 나머지 API는 정상", type(exc).__name__)
+    else:
+        logger.info("AI_PRELOAD_MODEL=false: 첫 예측 요청 때 모델을 로딩합니다")
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -35,7 +60,8 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(patient_router)
 app.include_router(medical_record_router)
-app.include_router(analysis_router)
+app.include_router(analysis_router)  # ⑬ AI 예측 결과 목록 (6일차 3단계 B)
+app.include_router(prediction_router)  # ⑫ AI 폐렴 예측 (6일차 3단계 C)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 

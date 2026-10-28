@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -24,6 +25,12 @@ class Settings(BaseSettings):
     HEATMAP_STORAGE_DIR: str = "storage/heatmap"
     # X-Ray 이미지 최대 용량 10MB (5일차 설계 2-3, 7-3)
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024
+
+    # AI 판독 모델 (6일차 설계 5-5, D17)
+    # true: 서버 시작(lifespan) 때 모델을 미리 로딩 / false: 첫 예측 요청 때 로딩 (개발 중 --reload용)
+    AI_PRELOAD_MODEL: bool = True
+    # 동시에 실행할 예측 수. CPU 5-fold 앙상블이라 기본 1 (NFR-PRED-002, 설계 9절)
+    AI_MAX_CONCURRENT_PREDICTIONS: int = Field(default=1, ge=1)
 
     model_config = {
         "env_file": ".env",
