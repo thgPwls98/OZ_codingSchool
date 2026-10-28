@@ -119,7 +119,7 @@ class UserFlowTests(unittest.TestCase):
                 db.add(MedicalRecord(id=1, patient_id=1, chart_number='C1', symptoms='기침'))
                 await db.flush()
                 db.add(XrayImage(id=1, record_id=1, uploader_id=1, image_url='/media/preserved.png', shooting_datetime=datetime.now()))
-                db.add(AIAnalysisResult(id=1, record_id=1, is_pneumonia=False, confidence=90, heatmap_url='/media/heat.png', ai_model='test'))
+                db.add(AIAnalysisResult(id=1, record_id=1, is_pneumonia=False, confidence=90, heatmap_url='/media/heat.png', ai_model='test', model_version='v1'))
                 await db.commit()
         asyncio.run(add_records())
         response = self.request('DELETE', 'users/me', headers=auth)
