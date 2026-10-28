@@ -1,5 +1,0 @@
-# Install the torch/torchvision builds appropriate to the target CPU/GPU.
-torch==2.11.0
-torchvision==0.26.0
-timm==1.0.30
-Pillow>=10.0

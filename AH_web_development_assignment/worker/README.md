@@ -10,13 +10,15 @@ threshold: 0.40000000000000013
 
 ## 실행
 
-프로젝트 루트(`AH_web_development_assignment/`)에서 지원되는 Python
-환경에 `python -m pip install -r worker/requirements.txt`로 의존성을 설치합니다.
+프로젝트 루트(`AH_web_development_assignment/`)에서 `uv sync`로 의존성을
+설치합니다. 모델 의존성은 `pyproject.toml`과 `uv.lock`에서 관리합니다.
+로컬에서 실행 검증한 Python 버전은 3.14입니다.
 학습 환경은 torch 2.11.0+cu130, torchvision 0.26.0+cu130, timm 1.0.30이며,
 배포 환경에 맞는 CPU/CUDA 빌드를 선택합니다.
 
 ```sh
-python -m worker.model /path/to/xray.jpg
+uv sync --python 3.14
+uv run python -m worker.model /path/to/xray.jpg
 ```
 
 서비스에서는 `load_model()`을 worker 시작 시 한 번 호출하고 반환된
@@ -82,3 +84,17 @@ Python 3.14 임시 가상환경(`/private/tmp/pneumonia-worker-venv`)에 의존�
 
 저장소에 실제 X-Ray 샘플이 없어 합성 이미지로 실행 흐름만 검증했습니다.
 실제 X-Ray 성능·Recall·Accuracy 검증 결과는 아닙니다.
+
+### 팀 공유 측정 결과와 후속 연결 방향
+
+팀에서 공유한 MacBook CPU 실제 X-Ray 1건의 결과는 정상, confidence 83.28%
+(폐렴 확률 약 16.7%)입니다. 공유된 추론 시간은 평균 1.31초·최대 1.46초,
+모델 5개 로딩은 17.5초입니다. 평가 이미지의 정답과 측정 횟수·조건이 기록되지
+않아 이 기록만으로 정확도나 동시 요청 시 3초 충족을 확정하지 않습니다.
+
+서버 연결 시 동기 방식으로 시작하고 비동기는 향후 과제(F1)로 둡니다.
+`AI_PRELOAD_MODEL`은 기본 true, 개발 시 false로 두는 방향으로 합의했으며,
+서버 시작 코드와 함께 연결할 예정입니다. 현재 이 환경변수를 읽는 코드는 없습니다.
+사전 로딩을 끄면 첫 예측이 모델 로딩 시간을 포함합니다.
+Compose의 FastAPI healthcheck에는 시작 준비 시간 `start_period: 40s`를
+추가했습니다. 이는 시작 중 실패에 유예를 주며 모델 준비 여부를 검사하지는 않습니다.
