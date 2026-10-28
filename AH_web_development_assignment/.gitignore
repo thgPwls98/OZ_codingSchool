@@ -21,3 +21,7 @@ envs/
 .env
 
 .python-version
+
+# Local model weights (distribute separately from source)
+worker/models/*.pt
+.DS_Store
