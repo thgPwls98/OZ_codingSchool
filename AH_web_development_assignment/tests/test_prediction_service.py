@@ -182,6 +182,24 @@ class PredictionServiceTests(unittest.TestCase):
         _, created = self.run_predict(1, FakePredictor(loaded=False), analyses)
         self.assertFalse(created)
 
+    def test_lazy_load_when_not_preloaded(self):  # AI_PRELOAD_MODEL=false: 첫 요청 때 로딩
+        class LazyPredictor(FakePredictor):
+            def ensure_loaded(self):
+                self.loaded = True
+                return True
+        predictor = LazyPredictor(loaded=False)
+        _, created = self.run_predict(1, predictor, FakeAnalysisRepository())
+        self.assertTrue(created)
+        self.assertEqual(predictor.calls, 1)
+
+    def test_lazy_load_failure_is_503(self):  # 가중치 없음 등으로 로딩 실패
+        class BrokenPredictor(FakePredictor):
+            def ensure_loaded(self):
+                return False
+        predictor = BrokenPredictor(loaded=False)
+        self.assert_http(503, self.run_predict, 1, predictor, FakeAnalysisRepository())
+        self.assertEqual(predictor.calls, 0)
+
     # ---------- 입력 오류 ----------
     def test_missing_record(self):  # T6
         e = self.assert_http(404, self.run_predict, 999, FakePredictor(), FakeAnalysisRepository())

@@ -87,7 +87,7 @@ class PredictionService:
         if saved is not None:
             return saved, False
 
-        if not self.predictor.is_loaded():
+        if not self.predictor.is_loaded() and not await self._try_load():
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=MODEL_UNAVAILABLE)
 
         image = await self.records.get_image(record_id)
@@ -156,6 +156,16 @@ class PredictionService:
             ) from e
 
     # ===== 내부 함수 =====
+
+    async def _try_load(self) -> bool:
+        """AI_PRELOAD_MODEL=false(지연 로딩)이거나 시작 시 로딩에 실패했을 때 지금 로딩을 시도한다.
+
+        예측 모듈에 ensure_loaded()가 없으면 로딩할 수 없는 것으로 본다 (503).
+        """
+        ensure_loaded = getattr(self.predictor, "ensure_loaded", None)
+        if ensure_loaded is None:
+            return False
+        return bool(await run_in_threadpool(ensure_loaded))
 
     def _resolve_image(self, image_id: int, image_url: str) -> Path:
         try:
