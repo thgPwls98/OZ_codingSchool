@@ -9,6 +9,7 @@ from starlette.responses import FileResponse
 
 from app.apis.auth import router as auth_router
 from app.apis.admin_apis import router as admin_router
+from app.apis.analysis_apis import router as analysis_router
 from app.apis.medical_record_apis import router as medical_record_router
 from app.apis.patient_apis import router as patient_router
 from app.apis.practice_apis import router as practice_router
@@ -34,6 +35,7 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(patient_router)
 app.include_router(medical_record_router)
+app.include_router(analysis_router)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
