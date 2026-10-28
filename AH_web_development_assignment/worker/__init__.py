@@ -1,0 +1,1 @@
+"""Pneumonia inference worker components."""
