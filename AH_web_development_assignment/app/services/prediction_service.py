@@ -177,7 +177,7 @@ class PredictionService:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=IMAGE_NOT_FOUND)
             except ValueError:
                 # 이미지가 아니거나 손상: 다시 시도해도 같은 결과 (설계 D9)
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=INVALID_IMAGE)
+                raise HTTPException(status_code=422, detail=INVALID_IMAGE)
             except Exception as e:
                 # 모델 오류(RuntimeError 등): 예외 내용·경로는 응답하지 않는다
                 logger.error("AI 예측 실패: record_id=%s, %s", record_id, type(e).__name__)
