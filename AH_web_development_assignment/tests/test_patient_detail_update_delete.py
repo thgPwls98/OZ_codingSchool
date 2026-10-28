@@ -84,7 +84,7 @@ class PatientDetailUpdateDeleteTests(unittest.TestCase):
                 db.add(XrayImage(id=rid, record_id=rid, uploader_id=1, image_url=f"{pid}/r{rid}.png",
                                  shooting_datetime=SHOT))
             db.add(AIAnalysisResult(id=1, record_id=1, is_pneumonia=True, confidence=Decimal("91.50"),
-                                    heatmap_url="1/h1.png", ai_model="test"))
+                                    heatmap_url="1/h1.png", ai_model="test", model_version="v1"))
             await db.commit()
 
         for rel in ("1/r1.png", "1/r2.png", "2/r3.png"):

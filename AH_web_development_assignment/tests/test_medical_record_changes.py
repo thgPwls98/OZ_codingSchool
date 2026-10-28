@@ -268,7 +268,7 @@ class MedicalRecordRepositoryTests(unittest.IsolatedAsyncioTestCase):
                 ))
                 await connection.execute(insert(AIAnalysisResult).values(
                     id=1, record_id=1, is_pneumonia=False, confidence=90,
-                    heatmap_url='heatmap.png', ai_model='test',
+                    heatmap_url='heatmap.png', ai_model='test', model_version='v1',
                 ))
             async with async_sessionmaker(engine, expire_on_commit=False)() as db:
                 repository = MedicalRecordRepository(db)
