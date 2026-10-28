@@ -114,7 +114,7 @@ class CascadeDeleteTests(unittest.TestCase):
                 await db.flush()
                 db.add(XrayImage(id=1, record_id=1, uploader_id=1, image_url="a.png", shooting_datetime=datetime.now()))
                 db.add(AIAnalysisResult(id=1, record_id=1, is_pneumonia=False, confidence=90,
-                                        heatmap_url="h.png", ai_model="test"))
+                                        heatmap_url="h.png", ai_model="test", model_version="v1"))
                 await db.commit()
 
         asyncio.run(insert())

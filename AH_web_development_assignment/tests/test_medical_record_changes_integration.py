@@ -32,7 +32,7 @@ class MedicalRecordChangesIntegrationTests(unittest.TestCase):
         async def insert():
             async with self.Session() as db:
                 db.add(AIAnalysisResult(record_id=record_id, is_pneumonia=False,
-                                       confidence=90, heatmap_url='1/result.png', ai_model='test'))
+                                       confidence=90, heatmap_url='1/result.png', ai_model='test', model_version='v1'))
                 await db.commit()
         asyncio.run(insert())
         return path
