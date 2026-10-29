@@ -1,7 +1,9 @@
 const state = {
     user: null,
     token: localStorage.getItem('token'),
-    currentPage: '/'
+    currentPage: '/',
+    navigationId: 0,
+    currentPatientId: null
 };
 
 async function login(email, password) {
@@ -36,18 +38,18 @@ async function login(email, password) {
     }
 }
 
-async function logout(event) {
+async function logout(event, notifyServer = true) {
     if (event) event.preventDefault();
     try {
-        if (typeof apis !== 'undefined' && apis.logout) {
+        if (notifyServer && typeof apis !== 'undefined' && apis.logout) {
             await apis.logout();
-            state.token = null;
-            state.user = null;
-            localStorage.removeItem('token');
-            localStorage.removeItem('isLoggedIn');
-            updateNav();
-            await navigate('/login');
         }
+        state.token = null;
+        state.user = null;
+        localStorage.removeItem('token');
+        localStorage.removeItem('isLoggedIn');
+        updateNav();
+        await navigate('/login');
     } catch (err) {
         console.error('Logout failed:', err);
         // 에러가 발생하더라도 클라이언트 측 세션은 정리하고 로그인 페이지로 이동
@@ -103,7 +105,7 @@ function updateNav() {
         }
         
         authLink.innerHTML = `
-            <span class="user-info" onclick="navigate('/my-page')" style="cursor: pointer;">${state.user.name}(${state.user.department})</span>
+            <span class="user-info" onclick="navigate('/my-page')" style="cursor: pointer;">${utils.escapeHtml(state.user.name)}(${utils.escapeHtml(state.user.department)})</span>
             <a href="#" onclick="logout(event)" class="nav-btn logout-btn">로그아웃</a>
         `;
     } else {
@@ -128,7 +130,9 @@ async function navigate(path, pushState = true) {
     const pathname = url.pathname;
     const searchParams = Object.fromEntries(url.searchParams);
     
+    const navigationId = ++state.navigationId;
     state.currentPage = pathname;
+    state.currentPatientId = null;
     pages.releaseXrayImage(); // 이전 상세 화면의 X-Ray Blob URL 해제
     const app = document.getElementById('app');
     app.innerHTML = '<div class="card">로딩 중...</div>';
@@ -167,7 +171,7 @@ async function navigate(path, pushState = true) {
             const patientId = pathname.split('/')[2];
             await pages.renderRecordCreate(patientId);
         } else if (pathname === '/my-page') {
-            pages.renderMyPage();
+            await pages.renderMyPage();
         } else if (pathname === '/admin/users') {
             await pages.renderAdminUsers(searchParams);
         } else if (pathname.startsWith('/patients/')) {
@@ -180,7 +184,8 @@ async function navigate(path, pushState = true) {
             app.innerHTML = '<div class="card"><h2>404</h2><p>페이지를 찾을 수 없습니다.</p></div>';
         }
     } catch (err) {
-        app.innerHTML = `<div class="card"><h2>오류</h2><p>${err.message}</p><button onclick="navigate('/')">홈으로</button></div>`;
+        if (state.navigationId !== navigationId) return;
+        app.innerHTML = `<div class="card"><h2>오류</h2><p>${utils.escapeHtml(err.message)}</p><button onclick="navigate('/')">홈으로</button></div>`;
     }
 }
 

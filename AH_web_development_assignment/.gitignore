@@ -1,27 +1,13 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+# Common secrets, environments, caches and editor files are ignored at repo root.
 
-# IDE settings
-# pycharm
-.idea
-# VSCode
-settings.json
+# Uploaded medical images, generated heatmaps and private runtime files
+/storage/
+/media/
 
-# Virtual environments
-.venv
-
-# Environment files
-envs/
-*.env
-.env
-
-.python-version
-
-# Local model weights (distribute separately from source)
-worker/models/*.pt
-.DS_Store
+# Model weights are distributed separately; keep source and documentation
+/worker/models/*.pt
+/worker/models/*.pth
+/worker/models/*.ckpt
+/worker/models/*.safetensors
+/worker/models/*.onnx
+/worker/models/*.h5

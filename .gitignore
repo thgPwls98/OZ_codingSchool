@@ -1,1 +1,66 @@
+# OS and local editor settings
 .DS_Store
+._*
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python environments and generated files
+.venv/
+.venv-*/
+venv/
+env/
+envs/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+wheels/
+.python-version
+
+# Secrets and local configuration; keep shareable examples
+.env
+.env.*
+*.env
+!.env.example
+!.env.*.example
+!*.env.example
+.aws/
+.ssh/
+*.pem
+*.key
+
+# Test, lint and tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+
+# Runtime logs and local database files
+*.log
+*.pid
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*.db
+*.db-wal
+*.db-shm
+
+# Local database exports and backups
+/backups/
+/dumps/
+/AH_web_development_assignment/backups/
+/AH_web_development_assignment/dumps/
