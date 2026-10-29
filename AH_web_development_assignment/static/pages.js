@@ -60,7 +60,7 @@ const pages = {
         listBody.innerHTML = patients.map(p => `
             <tr>
                 <td>${p.id}</td>
-                <td>${p.name}</td>
+                <td>${utils.escapeHtml(p.name)}</td>
                 <td>${p.age}</td>
                 <td>${p.gender === 'male' ? '남성' : '여성'}</td>
                 <td>${utils.formatPhoneNumber(p.phone_number)}</td>
@@ -80,10 +80,11 @@ const pages = {
     },
 
     async renderPatientDetail(patientId) {
+        const navigationId = state.navigationId;
         const patient = await apis.getPatient(patientId);
         const records = await apis.getPatientMedicalRecords(patientId);
         const html = await utils.loadTemplate('patient-detail');
-        if (!state.currentPage.startsWith('/patients/')) return;
+        if (state.currentPage !== `/patients/${patientId}` || state.navigationId !== navigationId) return;
         const app = document.getElementById('app');
         app.innerHTML = html;
         
@@ -110,8 +111,8 @@ const pages = {
         listBody.innerHTML = records.map(r => `
             <tr>
                 <td>${r.id}</td>
-                <td>${r.chart_number}</td>
-                <td>${r.symptoms}</td>
+                <td>${utils.escapeHtml(r.chart_number)}</td>
+                <td>${utils.escapeHtml(r.symptoms)}</td>
                 <td>${new Date(r.created_at).toLocaleString()}</td>
                 <td><button onclick="navigate('/medical-records/${r.id}')">상세보기</button></td>
             </tr>
@@ -166,6 +167,7 @@ const pages = {
         }
         try {
             const blob = await apis.getXrayImage(imageUrl);
+            if (document.getElementById('xray-img') !== img) return;
             this.currentXrayUrl = URL.createObjectURL(blob);
             img.src = this.currentXrayUrl;
         } catch (err) {
@@ -178,6 +180,7 @@ const pages = {
         const record = await apis.getMedicalRecord(recordId);
         const analyses = await apis.getMedicalRecordAnalyses(recordId);
         const html = await utils.loadTemplate('record-detail');
+        if (state.currentPage !== `/medical-records/${recordId}`) return;
         const app = document.getElementById('app');
         app.innerHTML = html;
         
@@ -186,6 +189,7 @@ const pages = {
         document.getElementById('symptoms-text').innerText = record.symptoms;
         document.getElementById('created-at').innerText = new Date(record.created_at).toLocaleString();
         await this.loadXrayImage(record.xray_image_url);
+        if (state.currentPage !== `/medical-records/${recordId}`) return;
         document.getElementById('xray-uploader').textContent = record.uploader_id === null
             ? '탈퇴한 사용자' : (record.uploader_name || '업로더 정보 없음');
         
@@ -204,6 +208,7 @@ const pages = {
                             <th>폐렴 여부</th>
                             <th>Confidence</th>
                             <th>사용 모델</th>
+                            <th>모델 버전</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -211,8 +216,9 @@ const pages = {
                             <tr class="${a.is_pneumonia ? 'result-positive' : 'result-negative'}">
                                 <td>${new Date(a.created_at).toLocaleString()}</td>
                                 <td><strong>${a.is_pneumonia ? 'Positive' : 'Negative'}</strong></td>
-                                <td>${a.confidence}%</td>
-                                <td>${a.ai_model}</td>
+                                <td>${utils.escapeHtml(a.confidence)}%</td>
+                                <td>${utils.escapeHtml(a.ai_model)}</td>
+                                <td>${utils.escapeHtml(a.model_version)}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -270,9 +276,9 @@ const pages = {
         listBody.innerHTML = users.map(u => `
             <tr>
                 <td>${u.id}</td>
-                <td>${u.name}</td>
-                <td>${u.email}</td>
-                <td>${u.department}</td>
+                <td>${utils.escapeHtml(u.name)}</td>
+                <td>${utils.escapeHtml(u.email)}</td>
+                <td>${utils.escapeHtml(u.department)}</td>
                 <td>${utils.formatPhoneNumber(u.phone_number)}</td>
                 <td>
                     <select onchange="pages.handleRoleUpdate(${u.id}, this.value)" ${u.id === state.user.id ? 'disabled' : ''}>
@@ -465,6 +471,7 @@ const pages = {
     async handlePatientUpdate(e) {
         e.preventDefault();
         const patientId = state.currentPatientId;
+        if (!patientId || state.currentPage !== `/patients/${patientId}`) return;
         const updateData = {
             name: document.getElementById('update-name').value,
             phone_number: document.getElementById('update-phone').value.replace(/[^\d]/g, '')
@@ -490,6 +497,7 @@ const pages = {
 
     async handlePatientDelete() {
         const patientId = state.currentPatientId;
+        if (!patientId || state.currentPage !== `/patients/${patientId}`) return;
         try {
             await apis.deletePatient(patientId);
             utils.showAlert('환자 정보와 관련 데이터가 모두 삭제되었습니다.', 'success');
@@ -501,12 +509,21 @@ const pages = {
     },
 
     async handlePredict(recordId) {
+        const button = document.getElementById('predict-btn');
+        if (!button || button.disabled) return;
+        button.disabled = true;
+        button.textContent = 'AI 예측 중...';
         try {
             await apis.predictPneumonia(recordId);
             utils.showAlert('AI 예측이 완료되었습니다.', 'success');
-            navigate(`/medical-records/${recordId}`, false);
+            if (state.currentPage === `/medical-records/${recordId}`) {
+                await navigate(`/medical-records/${recordId}`, false);
+            }
         } catch (err) {
             utils.showAlert(`AI 예측 실패: ${err.message}`, 'error');
+        } finally {
+            button.disabled = false;
+            button.textContent = 'AI 예측 결과보기';
         }
     }
 };

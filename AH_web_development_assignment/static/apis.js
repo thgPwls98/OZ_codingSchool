@@ -27,7 +27,7 @@ const apis = {
                 }
                 
                 if (!state.token || retried) {
-                    await logout();
+                    await logout(null, false);
                     throw new Error('다시 로그인해주세요.');
                 }
                 // 동시 요청은 같은 재발급을 기다린다. 실패한 대기 요청도 모두 종료한다.
@@ -42,7 +42,7 @@ const apis = {
                 try {
                     await this.refreshPromise;
                 } catch (error) {
-                    await logout();
+                    await logout(null, false);
                     throw error;
                 }
                 return await this.request(url, options, skipAlert, true);

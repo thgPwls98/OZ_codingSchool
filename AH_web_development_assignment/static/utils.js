@@ -3,6 +3,12 @@
  */
 
 const utils = {
+    // HTML 문자열에 넣는 텍스트 전용. 태그·속성으로 해석되지 않게 한다.
+    escapeHtml(value) {
+        const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+        return String(value ?? '').replace(/[&<>"']/g, char => entities[char]);
+    },
+
     togglePassword(inputId, button) {
         const input = document.getElementById(inputId);
         const visible = input.type === 'password';
